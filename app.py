@@ -256,15 +256,21 @@ def show_dashboard():
         st.warning("データが存在しません。左のメニューから「データ登録」を選択してデータを登録してください。")
         return
 
-    # 全体の集計を表示
+    # データの総件数を確認
     total_items = len(df)
+    
+    # 全体の集計を表示
     total_final_price = df['final_price'].sum()
     avg_start_price = df['start_price'].mean()
     avg_final_price = df['final_price'].mean()
     avg_bids = df['bid_count'].mean()
 
-    st.write(f"件数：{total_items:,}　落札価格の合計：{total_final_price:,.0f}　開始価格の平均：{avg_start_price:.2f}　"
-             f"落札価格の平均：{avg_final_price:.2f}　入札件数の平均：{avg_bids:.2f}")
+    # 集計値の表示（実際のデータ件数を使用）
+    st.write(f"総データ件数：{total_items:,}　"
+             f"落札価格の合計：¥{total_final_price:,.0f}　"
+             f"開始価格の平均：¥{avg_start_price:,.2f}　"
+             f"落札価格の平均：¥{avg_final_price:,.2f}　"
+             f"入札件数の平均：{avg_bids:.2f}")
 
     # セラー別の集計表を作成
     seller_stats = df.groupby('seller').agg({
@@ -277,18 +283,21 @@ def show_dashboard():
     # カラム名を設定
     seller_stats.columns = ['セラー', '件数', '平均開始価格', '落札価格合計', '平均落札価格', '平均入札件数']
 
-    # 件数でソートして上位を表示
+    # 件数でソートして表示（上位10件に限定しない）
     seller_stats = seller_stats.sort_values('件数', ascending=False)
 
     # 表示用にフォーマット
     formatted_stats = seller_stats.copy()
     formatted_stats['件数'] = formatted_stats['件数'].apply(lambda x: f"{int(x):,}")
-    formatted_stats['平均開始価格'] = formatted_stats['平均開始価格'].apply(lambda x: f"{x:.2f}")
-    formatted_stats['落札価格合計'] = formatted_stats['落札価格合計'].apply(lambda x: f"{int(x):,}")
-    formatted_stats['平均落札価格'] = formatted_stats['平均落札価格'].apply(lambda x: f"{x:.2f}")
+    formatted_stats['平均開始価格'] = formatted_stats['平均開始価格'].apply(lambda x: f"¥{x:,.2f}")
+    formatted_stats['落札価格合計'] = formatted_stats['落札価格合計'].apply(lambda x: f"¥{int(x):,}")
+    formatted_stats['平均落札価格'] = formatted_stats['平均落札価格'].apply(lambda x: f"¥{x:,.2f}")
     formatted_stats['平均入札件数'] = formatted_stats['平均入札件数'].apply(lambda x: f"{x:.2f}")
 
-    # テーブルとして表示
+    # セラー別集計の合計を表示
+    st.write(f"表示中のセラー数：{len(seller_stats):,}")
+    
+    # テーブルとして表示（ページネーション付き）
     st.dataframe(
         formatted_stats,
         column_config={
@@ -301,6 +310,11 @@ def show_dashboard():
         },
         hide_index=True
     )
+
+    # データの整合性チェック
+    total_items_by_seller = seller_stats['件数'].sum()
+    if total_items != total_items_by_seller:
+        st.warning(f"⚠️ データの不一致が検出されました。総件数: {total_items:,}, セラー別合計: {total_items_by_seller:,}")
 
 def main():
     """メイン関数"""
