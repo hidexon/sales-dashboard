@@ -13,6 +13,15 @@ st.set_page_config(
     layout="wide"
 )
 
+# 数値のフォーマット関数
+def format_price(price):
+    """価格を3桁区切りのカンマ付き文字列に変換"""
+    return f"¥{price:,}"
+
+def format_number(num):
+    """数値を3桁区切りのカンマ付き文字列に変換"""
+    return f"{num:,}"
+
 def init_connection():
     """Supabaseクライアントの初期化"""
     try:
@@ -303,16 +312,23 @@ def show_dashboard():
     # カラム名を設定
     seller_stats.columns = ['セラー', '件数', '平均開始価格', '落札価格合計', '平均落札価格', '平均入札件数']
 
-    # 件数でソートして表示（上位10件に限定しない）
-    seller_stats = seller_stats.sort_values('件数', ascending=False)
+    # ソートオプションを追加
+    sort_column = st.selectbox(
+        "ソート基準",
+        ["件数", "落札価格合計", "平均開始価格", "平均落札価格", "平均入札件数"],
+        index=1  # デフォルトで落札価格合計を選択
+    )
+    
+    # 選択された列でソート（数値のままソート）
+    seller_stats = seller_stats.sort_values(sort_column, ascending=False)
 
-    # 表示用にフォーマット
+    # 表示用にフォーマット（ソート後にフォーマット）
     formatted_stats = seller_stats.copy()
-    formatted_stats['件数'] = formatted_stats['件数'].apply(lambda x: f"{int(x):,}")
-    formatted_stats['平均開始価格'] = formatted_stats['平均開始価格'].apply(lambda x: f"¥{x:,.2f}")
-    formatted_stats['落札価格合計'] = formatted_stats['落札価格合計'].apply(lambda x: f"¥{int(x):,}")
-    formatted_stats['平均落札価格'] = formatted_stats['平均落札価格'].apply(lambda x: f"¥{x:,.2f}")
-    formatted_stats['平均入札件数'] = formatted_stats['平均入札件数'].apply(lambda x: f"{x:.2f}")
+    formatted_stats['件数'] = formatted_stats['件数'].apply(lambda x: format_number(int(x)))
+    formatted_stats['平均開始価格'] = formatted_stats['平均開始価格'].apply(lambda x: format_price(x))
+    formatted_stats['落札価格合計'] = formatted_stats['落札価格合計'].apply(lambda x: format_price(int(x)))
+    formatted_stats['平均落札価格'] = formatted_stats['平均落札価格'].apply(lambda x: format_price(x))
+    formatted_stats['平均入札件数'] = formatted_stats['平均入札件数'].apply(lambda x: format_number(x))
 
     # セラー別集計の合計を表示
     st.write(f"表示中のセラー数：{len(seller_stats):,}")
