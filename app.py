@@ -46,7 +46,8 @@ def main():
     def load_data():
         response = supabase.table('sales').select('*').execute()
         df = pd.DataFrame(response.data)
-        df['date'] = pd.to_datetime(df['date'])
+        # created_atをdatetimeに変換
+        df['created_at'] = pd.to_datetime(df['created_at'])
         return df
 
     # データの読み込み
@@ -60,16 +61,16 @@ def main():
     st.sidebar.header("期間選択")
     date_range = st.sidebar.date_input(
         "期間を選択",
-        value=(df['date'].min(), df['date'].max()),
-        min_value=df['date'].min(),
-        max_value=df['date'].max()
+        value=(df['created_at'].min(), df['created_at'].max()),
+        min_value=df['created_at'].min().date(),
+        max_value=df['created_at'].max().date()
     )
 
     # 選択された期間でデータをフィルタリング
     if len(date_range) == 2:
         start_date, end_date = date_range
-        filtered_df = df[(df['date'].dt.date >= start_date) & 
-                        (df['date'].dt.date <= end_date)]
+        filtered_df = df[(df['created_at'].dt.date >= start_date) & 
+                        (df['created_at'].dt.date <= end_date)]
     else:
         filtered_df = df
 
@@ -77,11 +78,11 @@ def main():
     # KPI概要
     col1, col2, col3 = st.columns(3)
     with col1:
-        total_sales = filtered_df['amount'].sum()
+        total_sales = filtered_df['price'].sum()
         st.metric("総売上", f"¥{total_sales:,.0f}")
     
     with col2:
-        avg_sales = filtered_df['amount'].mean()
+        avg_sales = filtered_df['price'].mean()
         st.metric("平均売上", f"¥{avg_sales:,.0f}")
     
     with col3:
@@ -90,22 +91,26 @@ def main():
 
     # グラフ
     st.markdown("### 売上推移")
-    daily_sales = filtered_df.groupby('date')['amount'].sum().reset_index()
-    fig = px.line(daily_sales, x='date', y='amount',
+    daily_sales = filtered_df.groupby(filtered_df['created_at'].dt.date)['price'].sum().reset_index()
+    fig = px.line(daily_sales, x='created_at', y='price',
                   title='日次売上推移',
-                  labels={'date': '日付', 'amount': '売上'})
+                  labels={'created_at': '日付', 'price': '売上'})
     st.plotly_chart(fig, use_container_width=True)
 
     # データテーブル
     st.markdown("### 売上データ")
     st.dataframe(
-        filtered_df.sort_values('date', ascending=False),
+        filtered_df.sort_values('created_at', ascending=False),
         column_config={
-            "date": "日付",
-            "amount": st.column_config.NumberColumn(
+            "created_at": st.column_config.DatetimeColumn(
+                "日付",
+                format="YYYY-MM-DD HH:mm"
+            ),
+            "price": st.column_config.NumberColumn(
                 "売上",
                 format="¥%d"
-            )
+            ),
+            "name": "商品名"
         },
         hide_index=True
     )
