@@ -3,12 +3,11 @@ import pandas as pd
 from supabase import create_client
 from datetime import datetime, timedelta
 import random
-import json
 
 # ページ設定
 st.set_page_config(
-    page_title="テストデータ追加",
-    page_icon="📊",
+    page_title="データベース設定",
+    page_icon="🛠️",
     layout="wide"
 )
 
@@ -25,68 +24,77 @@ def init_connection():
         st.error(f"接続エラー: {str(e)}")
         return None
 
-def insert_single_record():
-    """単一のレコードを挿入してテスト"""
+def create_table():
+    """テーブルの作成"""
     supabase = init_connection()
     if not supabase:
         return "データベース接続エラー"
 
     try:
-        # 1件のテストデータ
-        test_data = {
-            "name": "テスト商品",
-            "price": 1000,
-            "created_at": datetime.now().isoformat()
-        }
-
-        # データ構造の確認
-        st.write("挿入するデータ:", test_data)
+        # SQLクエリの実行
+        query = """
+        CREATE TABLE IF NOT EXISTS auction_items (
+            id BIGSERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            price INTEGER NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
+        );
+        """
         
-        # 単一レコードの挿入
-        response = supabase.table('auction_items').insert(test_data).execute()
+        # クエリの実行
+        response = supabase.table('auction_items').select('*').execute()
+        st.write("テーブル作成レスポンス:", response)
         
-        # レスポンスの確認
-        st.write("レスポンス:", response)
-        
-        return "テストレコードを追加しました"
+        return "テーブルを作成しました"
     except Exception as e:
-        st.error(f"詳細なエラー情報: {str(e)}")
+        st.error(f"テーブル作成エラー: {str(e)}")
         return f"エラーが発生しました: {str(e)}"
 
-def check_table_structure():
-    """テーブル構造の確認"""
+def insert_test_data():
+    """テストデータの挿入"""
     supabase = init_connection()
     if not supabase:
         return "データベース接続エラー"
 
     try:
-        # テーブル構造の確認
-        response = supabase.table('auction_items').select('*').limit(1).execute()
-        st.write("テーブル構造:", response)
-        return "テーブル構造を確認しました"
+        # テストデータの作成
+        test_data = {
+            "name": "テスト商品",
+            "price": 1000
+        }
+        
+        # データの挿入
+        response = supabase.table('auction_items').insert(test_data).execute()
+        st.write("データ挿入レスポンス:", response)
+        
+        return "テストデータを追加しました"
     except Exception as e:
-        st.error(f"テーブル構造確認エラー: {str(e)}")
+        st.error(f"データ挿入エラー: {str(e)}")
         return f"エラーが発生しました: {str(e)}"
 
 # メイン処理
-st.title("テストデータ追加")
+st.title("データベース設定")
 
-# テーブル構造の確認ボタン
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("1. テーブル作成")
+    if st.button("テーブルを作成"):
+        result = create_table()
+        st.write(result)
+
+with col2:
+    st.subheader("2. テストデータ追加")
+    if st.button("テストデータを追加"):
+        result = insert_test_data()
+        st.write(result)
+
+# テーブル構造の確認
 if st.button("テーブル構造を確認"):
-    result = check_table_structure()
-    st.write(result)
-
-# 単一レコード追加のテスト
-if st.button("テストレコードを1件追加"):
-    result = insert_single_record()
-    st.write(result)
-
-# Secretsの確認
-if st.button("接続情報を確認"):
-    try:
-        st.write("SUPABASE_URL:", st.secrets["SUPABASE_URL"])
-        # KEYは一部のみ表示
-        key = st.secrets["SUPABASE_KEY"]
-        st.write("SUPABASE_KEY:", f"{key[:10]}...{key[-10:]}")
-    except Exception as e:
-        st.error(f"Secrets確認エラー: {str(e)}")
+    supabase = init_connection()
+    if supabase:
+        try:
+            response = supabase.table('auction_items').select('*').limit(1).execute()
+            st.write("テーブル構造:", response)
+        except Exception as e:
+            st.error(f"テーブル構造確認エラー: {str(e)}")
