@@ -132,6 +132,112 @@ def show_data_upload():
             st.error(f"エラーが発生しました: {str(e)}")
             st.markdown("CSVファイルの形式が正しいか確認してください。")
 
+def show_data_management():
+    """データ管理画面"""
+    st.title("🗑️ データ管理")
+    st.markdown("---")
+
+    # データの読み込み
+    df = load_data()
+    
+    # 現在のデータ件数を表示
+    st.info(f"現在のデータ件数: {len(df):,}件")
+    
+    # データ削除セクション
+    st.subheader("データの削除")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # 全データ削除
+        st.markdown("##### 全データの削除")
+        if st.button("全データを削除", type="primary"):
+            confirm = st.checkbox("本当に全データを削除しますか？")
+            if confirm:
+                try:
+                    supabase = init_connection()
+                    supabase.table('sales').delete().execute()
+                    st.success("全データを削除しました！")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"削除中にエラーが発生しました: {str(e)}")
+    
+    with col2:
+        # 期間指定削除
+        st.markdown("##### 期間を指定して削除")
+        if len(df) > 0:
+            date_range = st.date_input(
+                "削除する期間を選択",
+                value=(df['timestamp'].min().date(), df['timestamp'].max().date()),
+                min_value=df['timestamp'].min().date(),
+                max_value=df['timestamp'].max().date()
+            )
+            
+            if len(date_range) == 2:
+                start_date, end_date = date_range
+                if st.button("指定期間のデータを削除"):
+                    confirm = st.checkbox("指定した期間のデータを削除しますか？")
+                    if confirm:
+                        try:
+                            supabase = init_connection()
+                            # ISO形式の文字列に変換
+                            start_str = start_date.isoformat()
+                            end_str = (end_date + timedelta(days=1)).isoformat()
+                            
+                            supabase.table('sales').delete().gte(
+                                'timestamp', start_str
+                            ).lt(
+                                'timestamp', end_str
+                            ).execute()
+                            
+                            st.success(f"{start_date}から{end_date}までのデータを削除しました！")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"削除中にエラーが発生しました: {str(e)}")
+
+    # データ確認セクション
+    st.subheader("現在のデータ")
+    if len(df) > 0:
+        # 日付でグループ化したデータ件数
+        st.markdown("##### 日付別データ件数")
+        daily_counts = df.groupby(df['timestamp'].dt.date).size().reset_index()
+        daily_counts.columns = ['日付', 'データ件数']
+        
+        fig = px.bar(
+            daily_counts,
+            x='日付',
+            y='データ件数',
+            labels={'日付': '日付', 'データ件数': '件数'}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # データの詳細表示
+        st.markdown("##### データ一覧")
+        st.dataframe(
+            df.sort_values('timestamp', ascending=False),
+            column_config={
+                "timestamp": st.column_config.DatetimeColumn(
+                    "取引日時",
+                    format="YYYY-MM-DD HH:mm"
+                ),
+                "title": "商品名",
+                "start_price": st.column_config.NumberColumn(
+                    "開始価格",
+                    format="¥%d"
+                ),
+                "final_price": st.column_config.NumberColumn(
+                    "落札価格",
+                    format="¥%d"
+                ),
+                "bid_count": "入札数",
+                "buyer": "購入者",
+                "seller": "販売者",
+                "product_url": st.column_config.LinkColumn("商品URL")
+            },
+            hide_index=True
+        )
+    else:
+        st.warning("データが登録されていません。")
+
 def show_dashboard():
     """ダッシュボード画面の表示"""
     # データの読み込み
@@ -288,14 +394,16 @@ def main():
 
     # 管理メニューの追加
     st.sidebar.markdown("---")
-    st.sidebar.header("データ管理")
+    st.sidebar.header("メニュー")
     menu = st.sidebar.selectbox(
         "機能を選択",
-        ["ダッシュボード", "データ登録"]
+        ["ダッシュボード", "データ登録", "データ管理"]
     )
 
     if menu == "データ登録":
         show_data_upload()
+    elif menu == "データ管理":
+        show_data_management()
     else:
         show_dashboard()
 
