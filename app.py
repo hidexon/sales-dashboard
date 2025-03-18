@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
-from supabase import create_client
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from supabase import create_client
 import pytz
+import numpy as np
 from io import StringIO
 import csv
 
@@ -12,52 +13,60 @@ import csv
 st.set_page_config(
     page_title="オークション分析ダッシュボード",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Supabaseクライアントの初期化
-@st.cache_resource
 def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    """Supabaseクライアントの初期化"""
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception as e:
+        st.error(f"データベース接続エラー: {str(e)}")
+        return None
 
 def check_password():
-    """パスワード認証機能"""
+    """パスワードチェック"""
     if "password_correct" not in st.session_state:
         st.session_state.password_correct = False
 
     if not st.session_state.password_correct:
-        password = st.text_input("パスワードを入力してください:", type="password")
-        if password == st.secrets["password"]:
+        password = st.text_input("パスワードを入力してください", type="password")
+        if password == st.secrets["APP_PASSWORD"]:
             st.session_state.password_correct = True
-            st.rerun()
-        return False
-    
+            st.experimental_rerun()
+        else:
+            if password:
+                st.error("パスワードが違います")
+            return False
     return True
 
 @st.cache_data(ttl=600)
 def load_data():
     """データの読み込みと前処理"""
-    supabase = init_connection()
-    response = supabase.table('sales').select('*').execute()
-    df = pd.DataFrame(response.data)
-    
-    if len(df) == 0:
-        return pd.DataFrame(columns=[
-            'timestamp', 'title', 'start_price', 'final_price', 
-            'bid_count', 'buyer', 'seller', 'product_url'
-        ])
-    
-    # タイムスタンプを日本時間に変換
-    df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert('Asia/Tokyo')
-    
-    # 利益率の計算
-    df['profit'] = df['final_price'] - df['start_price']
-    df['profit_rate'] = (df['profit'] / df['start_price'] * 100).round(1)
-    
-    return df
+    try:
+        supabase = init_connection()
+        if not supabase:
+            return pd.DataFrame()
+        
+        response = supabase.table('sales').select('*').order('timestamp').execute()
+        df = pd.DataFrame(response.data)
+        
+        if df.empty:
+            return df
+        
+        # タイムスタンプを日本時間に変換
+        jst = pytz.timezone('Asia/Tokyo')
+        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert(jst)
+        
+        # 利益計算
+        df['profit'] = df['final_price'] - df['start_price']
+        
+        return df
+    except Exception as e:
+        st.error(f"データ読み込みエラー: {str(e)}")
+        return pd.DataFrame()
 
 def show_data_upload():
     """データ登録画面"""
@@ -114,16 +123,24 @@ def show_data_upload():
                     try:
                         # タイムスタンプの変換（MM/DD HH:mm形式から）
                         date_str = row['タイムスタンプ']
-                        month, day = map(int, date_str.split()[0].split('/'))
-                        hour, minute = map(int, date_str.split()[1].split(':'))
+                        date_parts = date_str.split()
+                        
+                        if len(date_parts) != 2:
+                            raise ValueError(f"Invalid date format: {date_str}")
+                        
+                        date_part = date_parts[0]  # MM/DD
+                        time_part = date_parts[1]  # HH:mm
+                        
+                        month, day = map(int, date_part.split('/'))
+                        hour, minute = map(int, time_part.split(':'))
                         
                         # 日付を作成（現在の年を使用）
                         timestamp = datetime(current_year, month, day, hour, minute)
                         
-                        # 数値データの変換
-                        start_price = int(row['開始価格'])
-                        final_price = int(row['落札価格'])
-                        bid_count = int(row['入札数'])
+                        # 数値データの変換（カンマを除去してから変換）
+                        start_price = int(str(row['開始価格']).replace(',', ''))
+                        final_price = int(str(row['落札価格']).replace(',', ''))
+                        bid_count = int(str(row['入札数']).replace(',', ''))
                         
                         # データの登録
                         supabase.table('sales').insert({
@@ -159,301 +176,152 @@ def show_data_management():
     st.title("🗑️ データ管理")
     st.markdown("---")
 
-    # データの読み込み
+    # データ件数の表示
     df = load_data()
-    
-    # 現在のデータ件数を表示
-    st.info(f"現在のデータ件数: {len(df):,}件")
-    
-    # データ削除セクション
+    total_count = len(df)
+    st.info(f"現在のデータ件数: {total_count:,} 件")
+
+    # 全データ削除
     st.subheader("データの削除")
     col1, col2 = st.columns(2)
     
     with col1:
-        # 全データ削除
-        st.markdown("##### 全データの削除")
-        delete_all = st.button("全データを削除", type="primary")
-        confirm_all = st.checkbox("本当に全データを削除しますか？")
-        
-        if delete_all and confirm_all:
-            try:
-                supabase = init_connection()
-                # 全データを削除
-                result = supabase.table('sales').delete().neq('id', 0).execute()
-                
-                # 削除結果の確認
-                if hasattr(result, 'data'):
-                    deleted_count = len(result.data)
-                    st.success(f"{deleted_count}件のデータを削除しました！")
-                else:
-                    st.success("データを削除しました！")
-                
-                # キャッシュをクリア
-                load_data.clear()
-                # ページを再読み込み
-                st.rerun()
-            except Exception as e:
-                st.error(f"削除中にエラーが発生しました: {str(e)}")
-                st.error("エラーの詳細:")
-                st.code(str(e))
-    
+        if st.button("全データを削除", type="primary"):
+            if st.button("本当に全データを削除しますか？", type="primary"):
+                try:
+                    supabase = init_connection()
+                    supabase.table('sales').delete().neq('id', 0).execute()
+                    load_data.clear()
+                    st.success("全データを削除しました")
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"データ削除中にエラーが発生しました: {str(e)}")
+
+    # 期間指定削除
     with col2:
-        # 期間指定削除
-        st.markdown("##### 期間を指定して削除")
-        if len(df) > 0:
-            date_range = st.date_input(
+        st.write("期間を指定して削除")
+        if not df.empty:
+            min_date = df['timestamp'].min()
+            max_date = df['timestamp'].max()
+            selected_dates = st.date_input(
                 "削除する期間を選択",
-                value=(df['timestamp'].min().date(), df['timestamp'].max().date()),
-                min_value=df['timestamp'].min().date(),
-                max_value=df['timestamp'].max().date()
+                value=(min_date, max_date),
+                min_value=min_date.date(),
+                max_value=max_date.date()
             )
             
-            if len(date_range) == 2:
-                start_date, end_date = date_range
-                delete_period = st.button("指定期間のデータを削除")
-                confirm_period = st.checkbox("指定した期間のデータを削除しますか？")
-                
-                if delete_period and confirm_period:
-                    try:
-                        supabase = init_connection()
-                        # ISO形式の文字列に変換
-                        start_str = start_date.isoformat()
-                        end_str = (end_date + timedelta(days=1)).isoformat()
-                        
-                        result = supabase.table('sales').delete().gte(
-                            'timestamp', start_str
-                        ).lt(
-                            'timestamp', end_str
-                        ).execute()
-                        
-                        # 削除結果の確認
-                        if hasattr(result, 'data'):
-                            deleted_count = len(result.data)
-                            st.success(f"{deleted_count}件のデータを削除しました！")
-                        else:
-                            st.success(f"{start_date}から{end_date}までのデータを削除しました！")
-                        
-                        # キャッシュをクリア
-                        load_data.clear()
-                        # ページを再読み込み
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"削除中にエラーが発生しました: {str(e)}")
-                        st.error("エラーの詳細:")
-                        st.code(str(e))
+            if len(selected_dates) == 2 and st.button("選択期間のデータを削除"):
+                try:
+                    start_date, end_date = selected_dates
+                    start_datetime = datetime.combine(start_date, datetime.min.time())
+                    end_datetime = datetime.combine(end_date, datetime.max.time())
+                    
+                    supabase = init_connection()
+                    supabase.table('sales').delete() \
+                        .gte('timestamp', start_datetime.isoformat()) \
+                        .lte('timestamp', end_datetime.isoformat()) \
+                        .execute()
+                    
+                    load_data.clear()
+                    st.success(f"{start_date}から{end_date}までのデータを削除しました")
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"データ削除中にエラーが発生しました: {str(e)}")
 
-    # データ確認セクション
-    st.subheader("現在のデータ")
-    if len(df) > 0:
-        # 日付でグループ化したデータ件数
-        st.markdown("##### 日付別データ件数")
-        daily_counts = df.groupby(df['timestamp'].dt.date).size().reset_index()
-        daily_counts.columns = ['日付', 'データ件数']
-        
-        fig = px.bar(
-            daily_counts,
-            x='日付',
-            y='データ件数',
-            labels={'日付': '日付', 'データ件数': '件数'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # データの詳細表示
-        st.markdown("##### データ一覧")
+    # データの詳細表示
+    if not df.empty:
+        st.subheader("データの詳細")
         st.dataframe(
-            df.sort_values('timestamp', ascending=False),
-            column_config={
-                "timestamp": st.column_config.DatetimeColumn(
-                    "取引日時",
-                    format="YYYY-MM-DD HH:mm"
-                ),
-                "title": "商品名",
-                "start_price": st.column_config.NumberColumn(
-                    "開始価格",
-                    format="¥%d"
-                ),
-                "final_price": st.column_config.NumberColumn(
-                    "落札価格",
-                    format="¥%d"
-                ),
-                "bid_count": "入札数",
-                "buyer": "購入者",
-                "seller": "出品者",
-                "product_url": st.column_config.LinkColumn("商品URL")
-            },
-            hide_index=True
+            df.style.format({
+                'start_price': '{:,.0f}円',
+                'final_price': '{:,.0f}円',
+                'profit': '{:,.0f}円'
+            })
         )
-    else:
-        st.warning("データが登録されていません。")
 
 def show_dashboard():
-    """ダッシュボード画面の表示"""
-    # データの読み込み
-    df = load_data()
-
-    # ヘッダー
+    """ダッシュボード画面"""
     st.title("📊 オークション分析ダッシュボード")
     st.markdown("---")
 
-    if len(df) == 0:
-        st.warning("データが登録されていません。左メニューの「データ登録」からデータを登録してください。")
+    df = load_data()
+    if df.empty:
+        st.warning("データが存在しません。左のメニューから「データ登録」を選択してデータを登録してください。")
         return
 
-    # サイドバー - 期間選択
-    st.sidebar.header("期間選択")
-    date_range = st.sidebar.date_input(
-        "期間を選択",
-        value=(df['timestamp'].min().date(), df['timestamp'].max().date()),
-        min_value=df['timestamp'].min().date(),
-        max_value=df['timestamp'].max().date()
-    )
-
-    # データのフィルタリング
-    if len(date_range) == 2:
-        start_date, end_date = date_range
-        filtered_df = df[
-            (df['timestamp'].dt.date >= start_date) & 
-            (df['timestamp'].dt.date <= end_date)
-        ]
-    else:
-        filtered_df = df
-
-    # メイン画面を3列に分割
-    col1, col2, col3 = st.columns(3)
-
     # KPI表示
+    col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
-        total_sales = filtered_df['final_price'].sum()
+        total_sales = df['final_price'].sum()
         st.metric("総売上", f"¥{total_sales:,.0f}")
     
     with col2:
-        avg_profit_rate = filtered_df['profit_rate'].mean()
-        st.metric("平均利益率", f"{avg_profit_rate:.1f}%")
+        total_profit = df['profit'].sum()
+        st.metric("総利益", f"¥{total_profit:,.0f}")
     
     with col3:
-        total_items = len(filtered_df)
-        st.metric("取引件数", f"{total_items:,}件")
+        avg_profit = df['profit'].mean()
+        st.metric("平均利益", f"¥{avg_profit:,.0f}")
+    
+    with col4:
+        success_rate = (df['final_price'] > df['start_price']).mean() * 100
+        st.metric("利益計上率", f"{success_rate:.1f}%")
 
-    # グラフ表示エリアを2列に分割
-    graph_col1, graph_col2 = st.columns(2)
+    # グラフ表示
+    st.subheader("売上トレンド")
+    df_daily = df.groupby(df['timestamp'].dt.date).agg({
+        'final_price': 'sum',
+        'profit': 'sum'
+    }).reset_index()
 
-    with graph_col1:
-        # 日次売上推移グラフ
-        st.subheader("日次売上推移")
-        daily_sales = filtered_df.groupby(filtered_df['timestamp'].dt.date)['final_price'].sum().reset_index()
-        fig_sales = px.line(
-            daily_sales,
-            x='timestamp',
-            y='final_price',
-            labels={'timestamp': '日付', 'final_price': '売上'},
-        )
-        fig_sales.update_layout(yaxis_title="売上（円）")
-        st.plotly_chart(fig_sales, use_container_width=True)
-
-    with graph_col2:
-        # 商品別売上構成
-        st.subheader("商品別売上構成")
-        product_sales = filtered_df.groupby('title').agg({
-            'final_price': 'sum',
-            'id': 'count'
-        }).reset_index()
-        product_sales.columns = ['商品名', '売上', '取引件数']
-        fig_products = px.pie(
-            product_sales,
-            values='売上',
-            names='商品名',
-            hover_data=['取引件数']
-        )
-        st.plotly_chart(fig_products, use_container_width=True)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df_daily['timestamp'],
+        y=df_daily['final_price'],
+        name='売上',
+        line=dict(color='#1f77b4')
+    ))
+    fig.add_trace(go.Scatter(
+        x=df_daily['timestamp'],
+        y=df_daily['profit'],
+        name='利益',
+        line=dict(color='#2ca02c')
+    ))
+    fig.update_layout(
+        xaxis_title='日付',
+        yaxis_title='金額（円）',
+        hovermode='x unified'
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
     # 詳細データ表示
-    st.subheader("取引詳細")
+    st.subheader("取引データ")
     st.dataframe(
-        filtered_df.sort_values('timestamp', ascending=False),
-        column_config={
-            "timestamp": st.column_config.DatetimeColumn(
-                "取引日時",
-                format="YYYY-MM-DD HH:mm"
-            ),
-            "title": "商品名",
-            "start_price": st.column_config.NumberColumn(
-                "開始価格",
-                format="¥%d"
-            ),
-            "final_price": st.column_config.NumberColumn(
-                "落札価格",
-                format="¥%d"
-            ),
-            "profit": st.column_config.NumberColumn(
-                "利益",
-                format="¥%d"
-            ),
-            "profit_rate": st.column_config.NumberColumn(
-                "利益率",
-                format="%0.1f%%"
-            ),
-            "bid_count": "入札数",
-            "buyer": "購入者",
-            "seller": "出品者",
-            "product_url": st.column_config.LinkColumn("商品URL")
-        },
-        hide_index=True
+        df.style.format({
+            'start_price': '{:,.0f}円',
+            'final_price': '{:,.0f}円',
+            'profit': '{:,.0f}円'
+        })
     )
-
-    # 分析情報
-    st.subheader("📈 分析情報")
-    analysis_col1, analysis_col2 = st.columns(2)
-
-    with analysis_col1:
-        # 商品別平均利益率
-        st.markdown("##### 商品別平均利益率")
-        product_profit = filtered_df.groupby('title').agg({
-            'profit_rate': 'mean',
-            'id': 'count'
-        }).sort_values('profit_rate', ascending=False).reset_index()
-        
-        fig_profit = px.bar(
-            product_profit,
-            x='title',
-            y='profit_rate',
-            text='profit_rate',
-            labels={'title': '商品名', 'profit_rate': '利益率 (%)'},
-        )
-        fig_profit.update_traces(texttemplate='%{text:.1f}%')
-        st.plotly_chart(fig_profit, use_container_width=True)
-
-    with analysis_col2:
-        # 入札数と最終価格の関係
-        st.markdown("##### 入札数と最終価格の関係")
-        fig_bids = px.scatter(
-            filtered_df,
-            x='bid_count',
-            y='final_price',
-            color='title',
-            labels={'bid_count': '入札数', 'final_price': '最終価格', 'title': '商品名'},
-            trendline="ols"
-        )
-        st.plotly_chart(fig_bids, use_container_width=True)
 
 def main():
     """メイン関数"""
     if not check_password():
         return
 
-    # 管理メニューの追加
-    st.sidebar.markdown("---")
-    st.sidebar.header("メニュー")
+    # サイドバーメニュー
     menu = st.sidebar.selectbox(
-        "機能を選択",
+        "メニュー",
         ["ダッシュボード", "データ登録", "データ管理"]
     )
 
-    if menu == "データ登録":
+    if menu == "ダッシュボード":
+        show_dashboard()
+    elif menu == "データ登録":
         show_data_upload()
     elif menu == "データ管理":
         show_data_management()
-    else:
-        show_dashboard()
 
 if __name__ == "__main__":
     main()
