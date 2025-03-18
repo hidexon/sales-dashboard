@@ -3,11 +3,12 @@ import pandas as pd
 from supabase import create_client
 from datetime import datetime, timedelta
 import random
+import pytz
 
 # ページ設定
 st.set_page_config(
-    page_title="データベース設定",
-    page_icon="🛠️",
+    page_title="売上ダッシュボード",
+    page_icon="📊",
     layout="wide"
 )
 
@@ -24,32 +25,6 @@ def init_connection():
         st.error(f"接続エラー: {str(e)}")
         return None
 
-def create_table():
-    """テーブルの作成"""
-    supabase = init_connection()
-    if not supabase:
-        return "データベース接続エラー"
-
-    try:
-        # SQLクエリの実行
-        query = """
-        CREATE TABLE IF NOT EXISTS auction_items (
-            id BIGSERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            price INTEGER NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
-        );
-        """
-        
-        # クエリの実行
-        response = supabase.table('auction_items').select('*').execute()
-        st.write("テーブル作成レスポンス:", response)
-        
-        return "テーブルを作成しました"
-    except Exception as e:
-        st.error(f"テーブル作成エラー: {str(e)}")
-        return f"エラーが発生しました: {str(e)}"
-
 def insert_test_data():
     """テストデータの挿入"""
     supabase = init_connection()
@@ -57,44 +32,98 @@ def insert_test_data():
         return "データベース接続エラー"
 
     try:
-        # テストデータの作成
-        test_data = {
-            "name": "テスト商品",
-            "price": 1000
-        }
+        # 30日分のテストデータを生成
+        test_data = []
+        current_date = datetime.now(pytz.timezone('Asia/Tokyo'))
+        
+        # 商品名のリスト
+        products = [
+            "Nintendo Switch",
+            "PlayStation 5",
+            "iPad Pro",
+            "MacBook Air",
+            "AirPods Pro"
+        ]
+        
+        # 販売者と購入者のリスト
+        sellers = ["seller_A", "seller_B", "seller_C"]
+        buyers = ["buyer_X", "buyer_Y", "buyer_Z"]
+
+        for i in range(30):
+            date = current_date - timedelta(days=i)
+            # 1日あたり3〜7件のデータを生成
+            for _ in range(random.randint(3, 7)):
+                product = random.choice(products)
+                start_price = random.randint(10000, 50000)
+                bid_count = random.randint(1, 10)
+                final_price = start_price + (random.randint(1000, 5000) * bid_count)
+                
+                data = {
+                    "timestamp": date.isoformat(),
+                    "title": product,
+                    "start_price": start_price,
+                    "final_price": final_price,
+                    "bid_count": bid_count,
+                    "buyer": random.choice(buyers),
+                    "seller": random.choice(sellers),
+                    "product_url": f"https://example.com/item{random.randint(1000, 9999)}"
+                }
+                test_data.append(data)
         
         # データの挿入
-        response = supabase.table('auction_items').insert(test_data).execute()
-        st.write("データ挿入レスポンス:", response)
-        
-        return "テストデータを追加しました"
+        response = supabase.table('sales').insert(test_data).execute()
+        return f"{len(test_data)}件のテストデータを追加しました。"
+    
     except Exception as e:
-        st.error(f"データ挿入エラー: {str(e)}")
+        st.error(f"詳細なエラー情報: {str(e)}")
         return f"エラーが発生しました: {str(e)}"
 
 # メイン処理
-st.title("データベース設定")
+st.title("テストデータ追加")
 
-col1, col2 = st.columns(2)
+if st.button("テストデータを追加"):
+    result = insert_test_data()
+    st.write(result)
 
-with col1:
-    st.subheader("1. テーブル作成")
-    if st.button("テーブルを作成"):
-        result = create_table()
-        st.write(result)
-
-with col2:
-    st.subheader("2. テストデータ追加")
-    if st.button("テストデータを追加"):
-        result = insert_test_data()
-        st.write(result)
-
-# テーブル構造の確認
-if st.button("テーブル構造を確認"):
+# 現在のデータを確認
+if st.button("現在のデータを確認"):
     supabase = init_connection()
     if supabase:
         try:
-            response = supabase.table('auction_items').select('*').limit(1).execute()
-            st.write("テーブル構造:", response)
+            response = supabase.table('sales').select('*').order_by('timestamp', desc=True).execute()
+            df = pd.DataFrame(response.data)
+            if not df.empty:
+                st.write("データ件数:", len(df))
+                # タイムスタンプを日本時間に変換
+                df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert('Asia/Tokyo')
+                # 表示するカラムの順序を指定
+                columns = [
+                    'timestamp', 'title', 'start_price', 'final_price', 
+                    'bid_count', 'buyer', 'seller', 'product_url'
+                ]
+                st.dataframe(
+                    df[columns],
+                    column_config={
+                        "timestamp": st.column_config.DatetimeColumn(
+                            "日時",
+                            format="YYYY-MM-DD HH:mm"
+                        ),
+                        "title": "商品名",
+                        "start_price": st.column_config.NumberColumn(
+                            "開始価格",
+                            format="¥%d"
+                        ),
+                        "final_price": st.column_config.NumberColumn(
+                            "最終価格",
+                            format="¥%d"
+                        ),
+                        "bid_count": "入札数",
+                        "buyer": "購入者",
+                        "seller": "販売者",
+                        "product_url": st.column_config.LinkColumn("商品URL")
+                    }
+                )
+            else:
+                st.write("データが存在しません")
         except Exception as e:
-            st.error(f"テーブル構造確認エラー: {str(e)}")
+            st.error(f"データ確認エラー: {str(e)}")
