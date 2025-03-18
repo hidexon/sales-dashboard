@@ -31,18 +31,17 @@ def check_password():
     if not st.session_state.password_correct:
         password = st.text_input("パスワードを入力してください", type="password", key="password_input")
         if password:
-            # パスワードが設定されているか確認
-            if "APP_PASSWORD" not in st.secrets:
-                st.error("エラー: パスワードが設定されていません。管理者に連絡してください。")
+            try:
+                correct_password = st.secrets["password"]
+                if password == correct_password:
+                    st.session_state.password_correct = True
+                    st.experimental_rerun()
+                else:
+                    st.error("パスワードが違います")
                 return False
-            
-            # パスワードチェック
-            if password == st.secrets.APP_PASSWORD:
-                st.session_state.password_correct = True
-                st.experimental_rerun()
-            else:
-                st.error("パスワードが違います")
-            return False
+            except Exception as e:
+                st.error(f"パスワード設定エラー: {str(e)}")
+                return False
         return False
     return True
 
