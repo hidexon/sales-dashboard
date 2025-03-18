@@ -53,8 +53,28 @@ def load_data():
         if not supabase:
             return pd.DataFrame()
         
-        response = supabase.table('sales').select('*').order('timestamp').execute()
-        df = pd.DataFrame(response.data)
+        # ページネーションを使用して全データを取得
+        all_data = []
+        page_size = 1000
+        start = 0
+        
+        while True:
+            response = supabase.table('sales').select('*') \
+                .order('timestamp') \
+                .range(start, start + page_size - 1) \
+                .execute()
+            
+            if not response.data:  # データがない場合はループを終了
+                break
+                
+            all_data.extend(response.data)
+            
+            if len(response.data) < page_size:  # 最後のページの場合
+                break
+                
+            start += page_size
+        
+        df = pd.DataFrame(all_data)
         
         if df.empty:
             return df
@@ -312,7 +332,7 @@ def show_dashboard():
     )
 
     # データの整合性チェック
-    total_items_by_seller = seller_stats['件数'].sum()
+    total_items_by_seller = sum(int(x.replace(',', '')) for x in formatted_stats['件数'])
     if total_items != total_items_by_seller:
         st.warning(f"⚠️ データの不一致が検出されました。総件数: {total_items:,}, セラー別合計: {total_items_by_seller:,}")
 
