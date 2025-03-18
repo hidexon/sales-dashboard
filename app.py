@@ -35,7 +35,7 @@ def check_password():
                 correct_password = st.secrets["password"]
                 if password == correct_password:
                     st.session_state.password_correct = True
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("パスワードが違います")
                 return False
@@ -212,7 +212,7 @@ def show_data_management():
                     supabase.table('sales').delete().neq('id', 0).execute()
                     load_data.clear()
                     st.success("全データを削除しました")
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"データ削除中にエラーが発生しました: {str(e)}")
 
@@ -242,7 +242,7 @@ def show_data_management():
                     
                     load_data.clear()
                     st.success(f"{start_date}から{end_date}までのデータを削除しました")
-                    st.experimental_rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"データ削除中にエラーが発生しました: {str(e)}")
 
