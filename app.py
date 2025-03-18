@@ -4,91 +4,111 @@ from supabase import create_client
 import plotly.express as px
 from datetime import datetime, timedelta
 
-# Supabase初期化
+# ページ設定
+st.set_page_config(
+    page_title="売上ダッシュボード",
+    page_icon="📊",
+    layout="wide"
+)
+
+# Supabaseクライアントの初期化
 @st.cache_resource
-def init_supabase():
-    url = st.secrets["supabase_url"]
-    key = st.secrets["supabase_key"]
+def init_connection():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
 
-# パスワード認証
 def check_password():
+    """パスワードチェック関数"""
     if "password_correct" not in st.session_state:
         st.session_state.password_correct = False
 
     if not st.session_state.password_correct:
-        st.markdown("## 🔐 ログイン")
-        password = st.text_input("パスワードを入力してください", type="password")
-        
-        if st.button("ログイン"):
-            if password == st.secrets["password"]:
-                st.session_state.password_correct = True
-                st.experimental_rerun()
-            else:
-                st.error("パスワードが違います")
+        password = st.text_input("パスワードを入力してください:", type="password")
+        if password == st.secrets["password"]:
+            st.session_state.password_correct = True
+            st.rerun()
         return False
-
+    
     return True
 
 def main():
-    st.set_page_config(
-        page_title="売上分析ダッシュボード",
-        page_icon="📊",
-        layout="wide"
-    )
-
+    """メイン関数"""
+    # パスワード認証
     if not check_password():
         return
 
-    st.title("📊 売上分析ダッシュボード")
+    # Supabaseクライアントの取得
+    supabase = init_connection()
 
-    # データ取得
-    try:
-        supabase = init_supabase()
+    # データの取得
+    @st.cache_data(ttl=600)
+    def load_data():
         response = supabase.table('sales').select('*').execute()
         df = pd.DataFrame(response.data)
+        df['date'] = pd.to_datetime(df['date'])
+        return df
 
-        if len(df) == 0:
-            st.warning("データが存在しません")
-            return
+    # データの読み込み
+    df = load_data()
 
-        # タイムスタンプをdatetime型に変換
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+    # ヘッダー
+    st.title("📊 売上ダッシュボード")
+    st.markdown("---")
 
-        # 基本統計
-        st.header("📈 基本統計")
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("総取引数", f"{len(df):,}件")
-        with col2:
-            st.metric("総売上", f"¥{df['final_price'].sum():,}")
-        with col3:
-            st.metric("平均落札価格", f"¥{df['final_price'].mean():,.0f}")
+    # サイドバー - 期間選択
+    st.sidebar.header("期間選択")
+    date_range = st.sidebar.date_input(
+        "期間を選択",
+        value=(df['date'].min(), df['date'].max()),
+        min_value=df['date'].min(),
+        max_value=df['date'].max()
+    )
 
-        # 日次推移グラフ
-        st.header("📅 日次推移")
-        daily_sales = df.groupby(df['timestamp'].dt.date).agg({
-            'final_price': 'sum',
-            'id': 'count'
-        }).reset_index()
-        
-        fig = px.line(daily_sales, 
-                     x='timestamp', 
-                     y='final_price',
-                     title="日次売上推移")
-        st.plotly_chart(fig, use_container_width=True)
+    # 選択された期間でデータをフィルタリング
+    if len(date_range) == 2:
+        start_date, end_date = date_range
+        filtered_df = df[(df['date'].dt.date >= start_date) & 
+                        (df['date'].dt.date <= end_date)]
+    else:
+        filtered_df = df
 
-        # 出品者別集計
-        st.header("👥 出品者別集計")
-        seller_stats = df.groupby('seller').agg({
-            'final_price': ['sum', 'mean', 'count']
-        }).round(0)
-        seller_stats.columns = ['総売上', '平均価格', '取引数']
-        st.dataframe(seller_stats.sort_values('総売上', ascending=False))
+    # メインコンテンツ
+    # KPI概要
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        total_sales = filtered_df['amount'].sum()
+        st.metric("総売上", f"¥{total_sales:,.0f}")
+    
+    with col2:
+        avg_sales = filtered_df['amount'].mean()
+        st.metric("平均売上", f"¥{avg_sales:,.0f}")
+    
+    with col3:
+        total_orders = len(filtered_df)
+        st.metric("総注文数", f"{total_orders:,}")
 
-    except Exception as e:
-        st.error(f"エラーが発生しました: {str(e)}")
+    # グラフ
+    st.markdown("### 売上推移")
+    daily_sales = filtered_df.groupby('date')['amount'].sum().reset_index()
+    fig = px.line(daily_sales, x='date', y='amount',
+                  title='日次売上推移',
+                  labels={'date': '日付', 'amount': '売上'})
+    st.plotly_chart(fig, use_container_width=True)
+
+    # データテーブル
+    st.markdown("### 売上データ")
+    st.dataframe(
+        filtered_df.sort_values('date', ascending=False),
+        column_config={
+            "date": "日付",
+            "amount": st.column_config.NumberColumn(
+                "売上",
+                format="¥%d"
+            )
+        },
+        hide_index=True
+    )
 
 if __name__ == "__main__":
     main()
