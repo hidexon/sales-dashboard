@@ -90,7 +90,8 @@ if st.button("現在のデータを確認"):
     supabase = init_connection()
     if supabase:
         try:
-            response = supabase.table('sales').select('*').order_by('timestamp', desc=True).execute()
+            # order_byをorderに変更
+            response = supabase.table('sales').select('*').order('timestamp', desc=True).execute()
             df = pd.DataFrame(response.data)
             if not df.empty:
                 st.write("データ件数:", len(df))
@@ -127,3 +128,13 @@ if st.button("現在のデータを確認"):
                 st.write("データが存在しません")
         except Exception as e:
             st.error(f"データ確認エラー: {str(e)}")
+
+# データ削除機能の追加
+if st.button("全データを削除"):
+    supabase = init_connection()
+    if supabase:
+        try:
+            response = supabase.table('sales').delete().neq('id', 0).execute()
+            st.write("全データを削除しました")
+        except Exception as e:
+            st.error(f"データ削除エラー: {str(e)}")
