@@ -68,6 +68,49 @@ def load_data():
         st.error(f"データ読み込みエラー: {str(e)}")
         return pd.DataFrame()
 
+def parse_timestamp(date_str):
+    """タイムスタンプを解析する補助関数"""
+    try:
+        # 入力文字列をクリーニング
+        date_str = date_str.strip()
+        
+        # スペースで分割して日付と時刻を取得
+        parts = date_str.split(' ')
+        if len(parts) < 2:
+            raise ValueError(f"日付と時刻の区切りが見つかりません: {date_str}")
+            
+        date_part = parts[0]  # 日付部分
+        time_part = parts[1]  # 時刻部分
+        
+        # 日付部分を処理 (MM/DD)
+        if '/' not in date_part:
+            raise ValueError(f"日付の区切り(/)が見つかりません: {date_part}")
+            
+        month_day = date_part.split('/')
+        if len(month_day) != 2:
+            raise ValueError(f"日付の形式が不正です: {date_part}")
+            
+        month = int(month_day[0])
+        day = int(month_day[1])
+        
+        # 時刻部分を処理 (HH:mm:ss または HH:mm)
+        time_elements = time_part.split(':')
+        if len(time_elements) < 2:
+            raise ValueError(f"時刻の形式が不正です: {time_part}")
+            
+        hour = int(time_elements[0])
+        minute = int(time_elements[1])
+        second = int(time_elements[2]) if len(time_elements) > 2 else 0
+        
+        # 現在の年を取得
+        current_year = datetime.now().year
+        
+        # 日付オブジェクトを作成
+        return datetime(current_year, month, day, hour, minute, second)
+        
+    except Exception as e:
+        raise ValueError(f"日付の解析に失敗しました: {date_str} - {str(e)}")
+
 def show_data_upload():
     """データ登録画面"""
     st.title("📤 データ登録")
@@ -112,9 +155,6 @@ def show_data_upload():
                 if st.checkbox("既存データを削除してから登録する"):
                     supabase.table('sales').delete().neq('id', 0).execute()
                 
-                # 現在の年を取得
-                current_year = datetime.now().year
-                
                 # データの整形と登録
                 success_count = 0
                 error_count = 0
@@ -122,32 +162,7 @@ def show_data_upload():
                 for row in csv_data:
                     try:
                         # タイムスタンプの変換
-                        date_str = row['タイムスタンプ'].strip()
-                        
-                        # 日付形式の正規化
-                        if ' ' not in date_str:
-                            raise ValueError(f"日付形式が不正です（スペースがありません）: {date_str}")
-                        
-                        date_part, time_part = date_str.split(' ', 1)
-                        
-                        # 日付部分の処理
-                        if '/' in date_part:
-                            month, day = map(int, date_part.split('/'))
-                        else:
-                            raise ValueError(f"日付形式が不正です: {date_part}")
-                        
-                        # 時刻部分の処理
-                        if ':' in time_part:
-                            # HH:mm または HH:mm:ss 形式に対応
-                            time_parts = time_part.split(':')
-                            hour = int(time_parts[0])
-                            minute = int(time_parts[1])
-                            second = int(time_parts[2]) if len(time_parts) > 2 else 0
-                        else:
-                            raise ValueError(f"時刻形式が不正です: {time_part}")
-                        
-                        # 日付を作成
-                        timestamp = datetime(current_year, month, day, hour, minute, second)
+                        timestamp = parse_timestamp(row['タイムスタンプ'])
                         
                         # 数値データの変換（カンマと空白を除去してから変換）
                         start_price = int(str(row['開始価格']).replace(',', '').strip())
