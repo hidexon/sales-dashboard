@@ -82,16 +82,22 @@ def parse_timestamp(date_str):
         date_part = parts[0]  # 日付部分
         time_part = parts[1]  # 時刻部分
         
-        # 日付部分を処理 (MM/DD)
+        # 日付部分を処理 (YYYY/MM/DD または MM/DD)
         if '/' not in date_part:
             raise ValueError(f"日付の区切り(/)が見つかりません: {date_part}")
             
-        month_day = date_part.split('/')
-        if len(month_day) != 2:
+        date_elements = date_part.split('/')
+        
+        if len(date_elements) == 3:  # YYYY/MM/DD形式
+            year = int(date_elements[0])
+            month = int(date_elements[1])
+            day = int(date_elements[2])
+        elif len(date_elements) == 2:  # MM/DD形式
+            year = datetime.now().year
+            month = int(date_elements[0])
+            day = int(date_elements[1])
+        else:
             raise ValueError(f"日付の形式が不正です: {date_part}")
-            
-        month = int(month_day[0])
-        day = int(month_day[1])
         
         # 時刻部分を処理 (HH:mm:ss または HH:mm)
         time_elements = time_part.split(':')
@@ -102,11 +108,8 @@ def parse_timestamp(date_str):
         minute = int(time_elements[1])
         second = int(time_elements[2]) if len(time_elements) > 2 else 0
         
-        # 現在の年を取得
-        current_year = datetime.now().year
-        
         # 日付オブジェクトを作成
-        return datetime(current_year, month, day, hour, minute, second)
+        return datetime(year, month, day, hour, minute, second)
         
     except Exception as e:
         raise ValueError(f"日付の解析に失敗しました: {date_str} - {str(e)}")
@@ -119,7 +122,8 @@ def show_data_upload():
     # CSVファイルのテンプレートをダウンロード
     st.subheader("1. CSVテンプレートのダウンロード")
     template_csv = """タイムスタンプ,タイトル,開始価格,落札価格,入札数,落札者,出品者,商品URL
-03/18 13:59,"NN0056【１点限り】A4 ポスター 美女 美少女 オリジナルアート 同人イラスト コスプレ 可愛い スポーツ少女",70,70,1,取得対象外,bonbobon7,"https://auctions.yahoo.co.jp/jp/auction/o1177115124\""""
+03/18 13:59,"NN0056【１点限り】A4 ポスター 美女 美少女 オリジナルアート 同人イラスト コスプレ 可愛い スポーツ少女",70,70,1,取得対象外,bonbobon7,"https://auctions.yahoo.co.jp/jp/auction/o1177115124"
+2025/03/16 23:59:00,"別の商品例",1000,1500,5,buyer_name,seller_name,"https://example.com/item123\""""
     st.download_button(
         label="CSVテンプレートをダウンロード",
         data=template_csv,
@@ -146,6 +150,13 @@ def show_data_upload():
             st.subheader("3. アップロードされたデータの確認")
             df_preview = pd.DataFrame(csv_data)
             st.dataframe(df_preview)
+            
+            # 日付形式の説明
+            st.info("""
+            対応している日付形式:
+            - MM/DD HH:mm (例: 03/18 13:59)
+            - YYYY/MM/DD HH:mm:ss (例: 2025/03/16 23:59:00)
+            """)
             
             # データの登録
             if st.button("データを登録", type="primary"):
