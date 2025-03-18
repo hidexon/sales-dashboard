@@ -122,39 +122,48 @@ def show_data_upload():
                 for row in csv_data:
                     try:
                         # タイムスタンプの変換（MM/DD HH:mm形式から）
-                        date_str = row['タイムスタンプ']
-                        date_parts = date_str.split()
+                        date_str = row['タイムスタンプ'].strip()
                         
-                        if len(date_parts) != 2:
-                            raise ValueError(f"Invalid date format: {date_str}")
-                        
-                        date_part = date_parts[0]  # MM/DD
-                        time_part = date_parts[1]  # HH:mm
-                        
-                        month, day = map(int, date_part.split('/'))
-                        hour, minute = map(int, time_part.split(':'))
+                        # 日付と時刻を分割
+                        try:
+                            # スペースで分割して日付と時刻を取得
+                            date_part, time_part = date_str.split(' ')
+                            
+                            # 日付部分（MM/DD）を分割
+                            month_str, day_str = date_part.split('/')
+                            month = int(month_str)
+                            day = int(day_str)
+                            
+                            # 時刻部分（HH:mm）を分割
+                            hour_str, minute_str = time_part.split(':')
+                            hour = int(hour_str)
+                            minute = int(minute_str)
+                            
+                        except ValueError as e:
+                            raise ValueError(f"日付形式が不正です: {date_str}") from e
                         
                         # 日付を作成（現在の年を使用）
                         timestamp = datetime(current_year, month, day, hour, minute)
                         
-                        # 数値データの変換（カンマを除去してから変換）
-                        start_price = int(str(row['開始価格']).replace(',', ''))
-                        final_price = int(str(row['落札価格']).replace(',', ''))
-                        bid_count = int(str(row['入札数']).replace(',', ''))
+                        # 数値データの変換（カンマと空白を除去してから変換）
+                        start_price = int(str(row['開始価格']).replace(',', '').strip())
+                        final_price = int(str(row['落札価格']).replace(',', '').strip())
+                        bid_count = int(str(row['入札数']).replace(',', '').strip())
                         
                         # データの登録
                         supabase.table('sales').insert({
                             'timestamp': timestamp.isoformat(),
-                            'title': row['タイトル'],
+                            'title': row['タイトル'].strip(),
                             'start_price': start_price,
                             'final_price': final_price,
                             'bid_count': bid_count,
-                            'buyer': row['落札者'],
-                            'seller': row['出品者'],
-                            'product_url': row['商品URL']
+                            'buyer': row['落札者'].strip(),
+                            'seller': row['出品者'].strip(),
+                            'product_url': row['商品URL'].strip()
                         }).execute()
                         
                         success_count += 1
+                        
                     except Exception as e:
                         error_count += 1
                         st.error(f"データの登録中にエラーが発生しました: {str(e)}")
