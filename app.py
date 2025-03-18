@@ -76,7 +76,7 @@ def show_data_upload():
     # CSVファイルのテンプレートをダウンロード
     st.subheader("1. CSVテンプレートのダウンロード")
     template_csv = """タイムスタンプ,タイトル,開始価格,落札価格,入札数,落札者,出品者,商品URL
-03/16 00:06,商品名,1000,1500,5,buyer_name,seller_name,https://example.com"""
+03/18 13:59,"NN0056【１点限り】A4 ポスター 美女 美少女 オリジナルアート 同人イラスト コスプレ 可愛い スポーツ少女",70,70,1,取得対象外,bonbobon7,"https://auctions.yahoo.co.jp/jp/auction/o1177115124\""""
     st.download_button(
         label="CSVテンプレートをダウンロード",
         data=template_csv,
@@ -121,29 +121,33 @@ def show_data_upload():
                 
                 for row in csv_data:
                     try:
-                        # タイムスタンプの変換（MM/DD HH:mm形式から）
+                        # タイムスタンプの変換
                         date_str = row['タイムスタンプ'].strip()
                         
-                        # 日付と時刻を分割
-                        try:
-                            # スペースで分割して日付と時刻を取得
-                            date_part, time_part = date_str.split(' ')
-                            
-                            # 日付部分（MM/DD）を分割
-                            month_str, day_str = date_part.split('/')
-                            month = int(month_str)
-                            day = int(day_str)
-                            
-                            # 時刻部分（HH:mm）を分割
-                            hour_str, minute_str = time_part.split(':')
-                            hour = int(hour_str)
-                            minute = int(minute_str)
-                            
-                        except ValueError as e:
-                            raise ValueError(f"日付形式が不正です: {date_str}") from e
+                        # 日付形式の正規化
+                        if ' ' not in date_str:
+                            raise ValueError(f"日付形式が不正です（スペースがありません）: {date_str}")
                         
-                        # 日付を作成（現在の年を使用）
-                        timestamp = datetime(current_year, month, day, hour, minute)
+                        date_part, time_part = date_str.split(' ', 1)
+                        
+                        # 日付部分の処理
+                        if '/' in date_part:
+                            month, day = map(int, date_part.split('/'))
+                        else:
+                            raise ValueError(f"日付形式が不正です: {date_part}")
+                        
+                        # 時刻部分の処理
+                        if ':' in time_part:
+                            # HH:mm または HH:mm:ss 形式に対応
+                            time_parts = time_part.split(':')
+                            hour = int(time_parts[0])
+                            minute = int(time_parts[1])
+                            second = int(time_parts[2]) if len(time_parts) > 2 else 0
+                        else:
+                            raise ValueError(f"時刻形式が不正です: {time_part}")
+                        
+                        # 日付を作成
+                        timestamp = datetime(current_year, month, day, hour, minute, second)
                         
                         # 数値データの変換（カンマと空白を除去してから変換）
                         start_price = int(str(row['開始価格']).replace(',', '').strip())
