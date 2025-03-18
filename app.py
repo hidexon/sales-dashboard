@@ -66,8 +66,8 @@ def show_data_upload():
 
     # CSVファイルのテンプレートをダウンロード
     st.subheader("1. CSVテンプレートのダウンロード")
-    template_csv = """timestamp,title,start_price,final_price,bid_count,buyer,seller,product_url
-2024-01-01 10:00:00,商品名,1000,1500,5,buyer_name,seller_name,https://example.com"""
+    template_csv = """タイムスタンプ,タイトル,開始価格,落札価格,入札数,落札者,出品者,商品URL
+03/16 00:06,商品名,1000,1500,5,buyer_name,seller_name,https://example.com"""
     st.download_button(
         label="CSVテンプレートをダウンロード",
         data=template_csv,
@@ -103,32 +103,52 @@ def show_data_upload():
                 if st.checkbox("既存データを削除してから登録する"):
                     supabase.table('sales').delete().neq('id', 0).execute()
                 
+                # 現在の年を取得
+                current_year = datetime.now().year
+                
                 # データの整形と登録
+                success_count = 0
+                error_count = 0
+                
                 for row in csv_data:
-                    # タイムスタンプの変換
-                    timestamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S')
-                    
-                    # 数値データの変換
-                    start_price = int(row['start_price'])
-                    final_price = int(row['final_price'])
-                    bid_count = int(row['bid_count'])
-                    
-                    # データの登録
-                    supabase.table('sales').insert({
-                        'timestamp': timestamp.isoformat(),
-                        'title': row['title'],
-                        'start_price': start_price,
-                        'final_price': final_price,
-                        'bid_count': bid_count,
-                        'buyer': row['buyer'],
-                        'seller': row['seller'],
-                        'product_url': row['product_url']
-                    }).execute()
+                    try:
+                        # タイムスタンプの変換（MM/DD HH:mm形式から）
+                        date_str = row['タイムスタンプ']
+                        month, day = map(int, date_str.split()[0].split('/'))
+                        hour, minute = map(int, date_str.split()[1].split(':'))
+                        
+                        # 日付を作成（現在の年を使用）
+                        timestamp = datetime(current_year, month, day, hour, minute)
+                        
+                        # 数値データの変換
+                        start_price = int(row['開始価格'])
+                        final_price = int(row['落札価格'])
+                        bid_count = int(row['入札数'])
+                        
+                        # データの登録
+                        supabase.table('sales').insert({
+                            'timestamp': timestamp.isoformat(),
+                            'title': row['タイトル'],
+                            'start_price': start_price,
+                            'final_price': final_price,
+                            'bid_count': bid_count,
+                            'buyer': row['落札者'],
+                            'seller': row['出品者'],
+                            'product_url': row['商品URL']
+                        }).execute()
+                        
+                        success_count += 1
+                    except Exception as e:
+                        error_count += 1
+                        st.error(f"データの登録中にエラーが発生しました: {str(e)}")
+                        st.error(f"問題のある行: {row}")
+                        continue
                 
                 # キャッシュをクリア
                 load_data.clear()
-                st.success(f"{len(csv_data)}件のデータを登録しました！")
-                st.markdown("ダッシュボードで確認するには、左のメニューから「ダッシュボード」を選択してください。")
+                st.success(f"データ登録完了: 成功 {success_count}件, 失敗 {error_count}件")
+                if success_count > 0:
+                    st.markdown("ダッシュボードで確認するには、左のメニューから「ダッシュボード」を選択してください。")
         
         except Exception as e:
             st.error(f"エラーが発生しました: {str(e)}")
@@ -258,7 +278,7 @@ def show_data_management():
                 ),
                 "bid_count": "入札数",
                 "buyer": "購入者",
-                "seller": "販売者",
+                "seller": "出品者",
                 "product_url": st.column_config.LinkColumn("商品URL")
             },
             hide_index=True
@@ -374,7 +394,7 @@ def show_dashboard():
             ),
             "bid_count": "入札数",
             "buyer": "購入者",
-            "seller": "販売者",
+            "seller": "出品者",
             "product_url": st.column_config.LinkColumn("商品URL")
         },
         hide_index=True
