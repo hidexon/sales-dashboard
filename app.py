@@ -101,7 +101,7 @@ def show_data_upload():
                 
                 # 既存データの削除確認
                 if st.checkbox("既存データを削除してから登録する"):
-                    supabase.table('sales').delete().execute()
+                    supabase.table('sales').delete().neq('id', 0).execute()
                 
                 # データの整形と登録
                 for row in csv_data:
@@ -125,6 +125,8 @@ def show_data_upload():
                         'product_url': row['product_url']
                     }).execute()
                 
+                # キャッシュをクリア
+                load_data.clear()
                 st.success(f"{len(csv_data)}件のデータを登録しました！")
                 st.markdown("ダッシュボードで確認するには、左のメニューから「ダッシュボード」を選択してください。")
         
@@ -150,16 +152,30 @@ def show_data_management():
     with col1:
         # 全データ削除
         st.markdown("##### 全データの削除")
-        if st.button("全データを削除", type="primary"):
-            confirm = st.checkbox("本当に全データを削除しますか？")
-            if confirm:
-                try:
-                    supabase = init_connection()
-                    supabase.table('sales').delete().execute()
-                    st.success("全データを削除しました！")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"削除中にエラーが発生しました: {str(e)}")
+        delete_all = st.button("全データを削除", type="primary")
+        confirm_all = st.checkbox("本当に全データを削除しますか？")
+        
+        if delete_all and confirm_all:
+            try:
+                supabase = init_connection()
+                # 全データを削除
+                result = supabase.table('sales').delete().neq('id', 0).execute()
+                
+                # 削除結果の確認
+                if hasattr(result, 'data'):
+                    deleted_count = len(result.data)
+                    st.success(f"{deleted_count}件のデータを削除しました！")
+                else:
+                    st.success("データを削除しました！")
+                
+                # キャッシュをクリア
+                load_data.clear()
+                # ページを再読み込み
+                st.rerun()
+            except Exception as e:
+                st.error(f"削除中にエラーが発生しました: {str(e)}")
+                st.error("エラーの詳細:")
+                st.code(str(e))
     
     with col2:
         # 期間指定削除
@@ -174,25 +190,37 @@ def show_data_management():
             
             if len(date_range) == 2:
                 start_date, end_date = date_range
-                if st.button("指定期間のデータを削除"):
-                    confirm = st.checkbox("指定した期間のデータを削除しますか？")
-                    if confirm:
-                        try:
-                            supabase = init_connection()
-                            # ISO形式の文字列に変換
-                            start_str = start_date.isoformat()
-                            end_str = (end_date + timedelta(days=1)).isoformat()
-                            
-                            supabase.table('sales').delete().gte(
-                                'timestamp', start_str
-                            ).lt(
-                                'timestamp', end_str
-                            ).execute()
-                            
+                delete_period = st.button("指定期間のデータを削除")
+                confirm_period = st.checkbox("指定した期間のデータを削除しますか？")
+                
+                if delete_period and confirm_period:
+                    try:
+                        supabase = init_connection()
+                        # ISO形式の文字列に変換
+                        start_str = start_date.isoformat()
+                        end_str = (end_date + timedelta(days=1)).isoformat()
+                        
+                        result = supabase.table('sales').delete().gte(
+                            'timestamp', start_str
+                        ).lt(
+                            'timestamp', end_str
+                        ).execute()
+                        
+                        # 削除結果の確認
+                        if hasattr(result, 'data'):
+                            deleted_count = len(result.data)
+                            st.success(f"{deleted_count}件のデータを削除しました！")
+                        else:
                             st.success(f"{start_date}から{end_date}までのデータを削除しました！")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"削除中にエラーが発生しました: {str(e)}")
+                        
+                        # キャッシュをクリア
+                        load_data.clear()
+                        # ページを再読み込み
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"削除中にエラーが発生しました: {str(e)}")
+                        st.error("エラーの詳細:")
+                        st.code(str(e))
 
     # データ確認セクション
     st.subheader("現在のデータ")
