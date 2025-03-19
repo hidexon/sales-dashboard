@@ -141,9 +141,8 @@ def parse_timestamp(date_str):
 
 def show_data_upload():
     """データ登録画面"""
-    st.title("📤 データ登録")
-    st.markdown("---")
-
+    st.header("📤 データ登録")
+    
     # CSVファイルのテンプレートをダウンロード
     st.subheader("1. CSVテンプレートのダウンロード")
     template_csv = """タイムスタンプ,カテゴリ,タイトル,開始価格,落札価格,入札数,落札者,出品者,出品者URL,商品URL
@@ -156,71 +155,69 @@ def show_data_upload():
     )
     
     # CSVファイルのアップロード
-    st.subheader("2. データのアップロード")
-    uploaded_file = st.file_uploader("CSVファイルを選択", type="csv")
+    st.subheader("2. CSVファイルのアップロード")
+    uploaded_files = st.file_uploader(
+        "CSVファイルをアップロードしてください（複数ファイル可）",
+        type="csv",
+        accept_multiple_files=True
+    )
     
-    if uploaded_file is not None:
-        try:
-            stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
-            csv_data = list(csv.DictReader(stringio))
-            
-            if len(csv_data) == 0:
-                st.error("CSVファイルにデータが含まれていません。")
-                return
-            
-            st.subheader("3. アップロードされたデータの確認")
-            df_preview = pd.DataFrame(csv_data)
-            st.dataframe(df_preview)
-            
-            st.info("""
-            対応している日付形式:
-            - MM/DD HH:mm (例: 03/18 13:59)
-            - YYYY/MM/DD HH:mm:ss (例: 2025/03/16 23:59:00)
-            """)
-            
-            if st.button("データを登録", type="primary"):
-                supabase = init_connection()
-                
-                if st.checkbox("既存データを削除してから登録する"):
-                    supabase.table('sales').delete().neq('id', 0).execute()
-                
-                success_count = 0
-                error_count = 0
-                
-                for row in csv_data:
-                    try:
-                        timestamp = parse_timestamp(row['タイムスタンプ'])
-                        start_price = int(str(row['開始価格']).replace(',', '').strip())
-                        final_price = int(str(row['落札価格']).replace(',', '').strip())
-                        bid_count = int(str(row['入札数']).replace(',', '').strip())
-                        
-                        supabase.table('sales').insert({
-                            'timestamp': timestamp.isoformat(),
-                            'title': row['タイトル'].strip(),
-                            'start_price': start_price,
-                            'final_price': final_price,
-                            'bid_count': bid_count,
-                            'buyer': row['落札者'].strip(),
-                            'seller': row['出品者'].strip(),
-                            'product_url': row['商品URL'].strip()
-                        }).execute()
-                        
-                        success_count += 1
-                        
-                    except Exception as e:
-                        error_count += 1
-                        st.error(f"データの登録中にエラーが発生しました: {str(e)}")
-                        st.error(f"問題のある行: {row}")
-                        continue
-                
-                load_data.clear()
-                st.success(f"データ登録完了: 成功 {success_count}件, 失敗 {error_count}件")
-                if success_count > 0:
-                    st.markdown("ダッシュボードで確認するには、左のメニューから「ダッシュボード」を選択してください。")
+    if uploaded_files:
+        total_rows = 0
+        success_count = 0
+        error_count = 0
+        error_messages = []
         
-        except Exception as e:
-            st.error(f"エラーが発生しました: {str(e)}")
-            st.markdown("CSVファイルの形式が正しいか確認してください。")
+        with st.spinner("データを登録中..."):
+            for uploaded_file in uploaded_files:
+                try:
+                    # ファイル名を表示
+                    st.write(f"処理中: {uploaded_file.name}")
+                    
+                    # CSVファイルを読み込む
+                    df = pd.read_csv(uploaded_file)
+                    total_rows += len(df)
+                    
+                    # データを登録
+                    for _, row in df.iterrows():
+                        try:
+                            # 日付形式の統一
+                            timestamp = pd.to_datetime(row['タイムスタンプ'])
+                            formatted_date = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                            
+                            # データを登録
+                            data = {
+                                'timestamp': formatted_date,
+                                'category': row['カテゴリ'],
+                                'title': row['タイトル'],
+                                'start_price': row['開始価格'],
+                                'end_price': row['落札価格'],
+                                'bids': row['入札数'],
+                                'winner': row['落札者'],
+                                'seller': row['出品者'],
+                                'seller_url': row['出品者URL'],
+                                'item_url': row['商品URL']
+                            }
+                            supabase.table('sales').insert(data).execute()
+                            success_count += 1
+                        except Exception as e:
+                            error_count += 1
+                            error_messages.append(f"行 {_+1}: {str(e)}")
+                except Exception as e:
+                    error_count += 1
+                    error_messages.append(f"ファイル {uploaded_file.name}: {str(e)}")
+        
+        # 結果を表示
+        st.success(f"処理完了！\n- 合計行数: {total_rows}\n- 成功: {success_count}\n- エラー: {error_count}")
+        
+        if error_messages:
+            st.error("エラーが発生しました:")
+            for msg in error_messages:
+                st.write(f"- {msg}")
+        
+        # キャッシュをクリアして画面を更新
+        st.cache_data.clear()
+        st.rerun()
 
 def show_data_management():
     """データ管理画面"""
