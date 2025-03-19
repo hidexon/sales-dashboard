@@ -467,13 +467,18 @@ def show_dashboard():
     
     # テーブルとして表示（ページネーション付き）
     try:
+        # 表示用のデータフレームを作成（出品者URL列を除外）
+        display_stats = seller_stats.drop(columns=['出品者URL'])
+        
         st.dataframe(
-            seller_stats,
+            display_stats,
             column_config={
-                'セラー': st.column_config.TextColumn(
+                'セラー': st.column_config.LinkColumn(
                     'セラー',
                     help="出品者名（クリックで出品者ページへ）",
-                    width="medium"
+                    width="medium",
+                    display_text=lambda x: x,
+                    url=lambda row: seller_stats.loc[row.name, '出品者URL']
                 ),
                 '件数': st.column_config.NumberColumn('件数', help="出品数", format="%d"),
                 '平均開始価格': st.column_config.NumberColumn('平均開始価格', help="平均開始価格", format="¥%d"),
@@ -484,17 +489,12 @@ def show_dashboard():
             hide_index=True,
             use_container_width=True
         )
-        
-        # セラー名をクリック可能なリンクとして表示
-        st.markdown("### 出品者リンク")
-        for _, row in seller_stats.iterrows():
-            st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
             
     except Exception as e:
         st.error(f"データの表示中にエラーが発生しました: {str(e)}")
         # フォールバック：シンプルなテーブル表示
         st.dataframe(
-            seller_stats,
+            display_stats,
             hide_index=True,
             use_container_width=True
         )
