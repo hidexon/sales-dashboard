@@ -478,7 +478,7 @@ def show_dashboard():
                     'セラー',
                     help='出品者名（クリックで出品者ページを開きます）',
                     width='medium',
-                    url='出品者URL'
+                    link_target='出品者URL'
                 ),
                 '件数': st.column_config.NumberColumn(
                     '件数',
