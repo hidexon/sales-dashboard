@@ -446,37 +446,37 @@ def show_dashboard():
         '平均開始価格': st.column_config.NumberColumn(
             label='平均開始価格',
             help='出品価格の平均値',
-            format="¥%d"
+            format="¥{:,.0f}"
         ),
         '最小開始価格': st.column_config.NumberColumn(
             label='最小開始価格',
             help='最も安い出品価格',
-            format="¥%d"
+            format="¥{:,.0f}"
         ),
         '最大開始価格': st.column_config.NumberColumn(
             label='最大開始価格',
             help='最も高い出品価格',
-            format="¥%d"
+            format="¥{:,.0f}"
         ),
         '落札価格合計': st.column_config.NumberColumn(
             label='落札価格合計',
             help='全商品の落札価格の合計',
-            format="¥%d"
+            format="¥{:,.0f}"
         ),
         '平均落札価格': st.column_config.NumberColumn(
             label='平均落札価格',
             help='落札価格の平均値',
-            format="¥%d"
+            format="¥{:,.0f}"
         ),
         '最小落札価格': st.column_config.NumberColumn(
             label='最小落札価格',
             help='最も安い落札価格',
-            format="¥%d"
+            format="¥{:,.0f}"
         ),
         '最大落札価格': st.column_config.NumberColumn(
             label='最大落札価格',
             help='最も高い落札価格',
-            format="¥%d"
+            format="¥{:,.0f}"
         ),
         '平均入札数': st.column_config.NumberColumn(
             label='平均入札数',
