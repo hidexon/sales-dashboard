@@ -163,6 +163,9 @@ def show_data_upload():
     )
     
     if uploaded_files:
+        # 重複チェック用のセット
+        processed_files = set()
+        
         total_rows = 0
         success_count = 0
         error_count = 0
@@ -175,6 +178,11 @@ def show_data_upload():
         with st.spinner("データを登録中..."):
             for uploaded_file in uploaded_files:
                 try:
+                    # ファイル名の重複チェック
+                    if uploaded_file.name in processed_files:
+                        st.warning(f"警告: {uploaded_file.name} は既に処理済みです。スキップします。")
+                        continue
+                    
                     # ファイル名を表示
                     st.write(f"処理中: {uploaded_file.name}")
                     
@@ -233,6 +241,10 @@ def show_data_upload():
                             error_messages.append(f"行 {index+1}: {str(e)}")
                             st.error(f"エラー詳細: {str(e)}")
                             st.error(f"問題のあるデータ: {row.to_dict()}")
+                    
+                    # 処理済みファイルとして記録
+                    processed_files.add(uploaded_file.name)
+                    
                 except Exception as e:
                     error_count += 1
                     error_messages.append(f"ファイル {uploaded_file.name}: {str(e)}")
