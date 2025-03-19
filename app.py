@@ -19,11 +19,17 @@ st.set_page_config(
 # 数値のフォーマット関数
 def format_price(price):
     """価格を3桁区切りのカンマ付き文字列に変換"""
-    return f"¥{price:,}"
+    try:
+        return f"¥{int(float(price)):,}"
+    except (ValueError, TypeError):
+        return "¥0"
 
 def format_number(num):
     """数値を3桁区切りのカンマ付き文字列に変換"""
-    return f"{num:,}"
+    try:
+        return f"{int(float(num)):,}"
+    except (ValueError, TypeError):
+        return "0"
 
 def init_connection():
     """Supabaseクライアントの初期化"""
@@ -417,9 +423,9 @@ def show_dashboard():
     ]
     text_columns = ['出品者', '出品者URL']
     
-    # 数値列を数値型に変換
+    # 数値列を数値型に変換（NaNを0に置換）
     for col in numeric_columns:
-        seller_stats[col] = pd.to_numeric(seller_stats[col], errors='coerce')
+        seller_stats[col] = pd.to_numeric(seller_stats[col], errors='coerce').fillna(0)
     
     # テキスト列を文字列型に変換
     for col in text_columns:
@@ -427,6 +433,8 @@ def show_dashboard():
     
     # 表示用のフォーマットを適用
     display_stats = seller_stats.copy()
+    
+    # フォーマットを適用
     display_stats['出品件数'] = display_stats['出品件数'].apply(format_number)
     display_stats['平均開始価格'] = display_stats['平均開始価格'].apply(format_price)
     display_stats['最小開始価格'] = display_stats['最小開始価格'].apply(format_price)
@@ -435,7 +443,7 @@ def show_dashboard():
     display_stats['平均落札価格'] = display_stats['平均落札価格'].apply(format_price)
     display_stats['最小落札価格'] = display_stats['最小落札価格'].apply(format_price)
     display_stats['最大落札価格'] = display_stats['最大落札価格'].apply(format_price)
-    display_stats['平均入札数'] = display_stats['平均入札数'].apply(lambda x: f"{x:.1f}")
+    display_stats['平均入札数'] = display_stats['平均入札数'].apply(lambda x: f"{float(x):.1f}")
     display_stats['最大入札数'] = display_stats['最大入札数'].apply(format_number)
     
     # 表示する列を選択
