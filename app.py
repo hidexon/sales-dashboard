@@ -155,10 +155,6 @@ def show_data_upload():
         mime="text/csv"
     )
     
-    # セッション状態の初期化
-    if 'processing_complete' not in st.session_state:
-        st.session_state.processing_complete = False
-    
     # CSVファイルのアップロード
     st.subheader("2. CSVファイルのアップロード")
     uploaded_files = st.file_uploader(
@@ -166,6 +162,10 @@ def show_data_upload():
         type="csv",
         accept_multiple_files=True
     )
+    
+    # セッション状態の初期化（ファイルアップロード後に実行）
+    if 'processing_complete' not in st.session_state:
+        st.session_state.processing_complete = False
     
     if uploaded_files and not st.session_state.processing_complete:
         # 重複チェック用のセット
@@ -200,7 +200,7 @@ def show_data_upload():
                     for index, row in df.iterrows():
                         try:
                             # 進捗状況を更新
-                            current_progress = (success_count + error_count) / total_rows
+                            current_progress = (success_count + error_count) / total_rows if total_rows > 0 else 0
                             progress_bar.progress(current_progress)
                             status_text.text(f"進捗: {success_count + error_count}/{total_rows} 件 (成功: {success_count}, エラー: {error_count})")
                             
@@ -284,7 +284,7 @@ def show_data_upload():
         st.rerun()
     
     # 処理完了後、新しいアップロードの準備
-    elif st.session_state.processing_complete and not uploaded_files:
+    elif not uploaded_files:
         st.session_state.processing_complete = False
 
 def show_data_management():
