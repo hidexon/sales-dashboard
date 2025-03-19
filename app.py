@@ -232,29 +232,46 @@ def show_data_management():
     total_count = len(df)
     st.info(f"現在のデータ件数: {total_count:,} 件")
 
+    # 削除プロセスの状態管理
+    if 'delete_step' not in st.session_state:
+        st.session_state.delete_step = 0
+
     # 削除ボタンと確認プロセス
-    delete_container = st.empty()
-    confirm_container = st.empty()
-    final_confirm_container = st.empty()
+    if st.session_state.delete_step == 0:
+        if st.button("データを全て削除"):
+            st.session_state.delete_step = 1
+            st.rerun()
     
-    if delete_container.button("データを全て削除"):
-        confirm_container.warning("⚠️ 本当にすべてのデータを削除しますか？")
-        if confirm_container.button("はい、削除します"):
-            final_confirm_container.error("⚠️ 最終確認: この操作は取り消せません。本当に削除しますか？")
-            if final_confirm_container.button("はい、完全に削除します"):
+    elif st.session_state.delete_step == 1:
+        st.warning("⚠️ 本当にすべてのデータを削除しますか？")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("はい、削除します"):
+                st.session_state.delete_step = 2
+                st.rerun()
+        with col2:
+            if st.button("キャンセル"):
+                st.session_state.delete_step = 0
+                st.rerun()
+    
+    elif st.session_state.delete_step == 2:
+        st.error("⚠️ 最終確認: この操作は取り消せません。本当に削除しますか？")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("はい、完全に削除します"):
                 if delete_all_data():
-                    # すべてのコンテナをクリア
-                    delete_container.empty()
-                    confirm_container.empty()
-                    final_confirm_container.empty()
-                    # 画面を更新
+                    st.session_state.delete_step = 0
                     st.rerun()
+        with col2:
+            if st.button("キャンセル"):
+                st.session_state.delete_step = 0
+                st.rerun()
 
 def delete_all_data():
     try:
         # 現在のデータ数を確認
         supabase = init_connection()
-        response = supabase.table('auction_data').select('*').execute()
+        response = supabase.table('sales').select('*').execute()
         current_count = len(response.data)
         
         if current_count == 0:
@@ -262,16 +279,16 @@ def delete_all_data():
             return False
             
         # データを削除
-        result = supabase.table('auction_data').delete().neq('id', 0).execute()
+        result = supabase.table('sales').delete().neq('id', 0).execute()
         
         # 削除後のデータ数を確認
-        after_response = supabase.table('auction_data').select('*').execute()
+        after_response = supabase.table('sales').select('*').execute()
         after_count = len(after_response.data)
         
         if after_count == 0:
             st.success(f"全てのデータ（{current_count}件）を削除しました。")
             # キャッシュをクリア
-            st.cache_data.clear()
+            load_data.clear()
             return True
         else:
             st.error(f"データの削除が完全ではありません。（削除前: {current_count}件, 削除後: {after_count}件）")
