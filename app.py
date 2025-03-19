@@ -409,17 +409,34 @@ def show_dashboard():
         '平均入札数', '最大入札数', '出品者URL'
     ]
     
-    # 数値のフォーマット
-    seller_stats['出品件数'] = seller_stats['出品件数'].apply(format_number)
-    seller_stats['平均開始価格'] = seller_stats['平均開始価格'].apply(format_price)
-    seller_stats['最小開始価格'] = seller_stats['最小開始価格'].apply(format_price)
-    seller_stats['最大開始価格'] = seller_stats['最大開始価格'].apply(format_price)
-    seller_stats['落札価格合計'] = seller_stats['落札価格合計'].apply(format_price)
-    seller_stats['平均落札価格'] = seller_stats['平均落札価格'].apply(format_price)
-    seller_stats['最小落札価格'] = seller_stats['最小落札価格'].apply(format_price)
-    seller_stats['最大落札価格'] = seller_stats['最大落札価格'].apply(format_price)
-    seller_stats['平均入札数'] = seller_stats['平均入札数'].apply(lambda x: f"{x:.1f}")
-    seller_stats['最大入札数'] = seller_stats['最大入札数'].apply(format_number)
+    # データ型を設定
+    numeric_columns = [
+        '出品件数', '平均開始価格', '最小開始価格', '最大開始価格',
+        '落札価格合計', '平均落札価格', '最小落札価格', '最大落札価格',
+        '平均入札数', '最大入札数'
+    ]
+    text_columns = ['出品者', '出品者URL']
+    
+    # 数値列を数値型に変換
+    for col in numeric_columns:
+        seller_stats[col] = pd.to_numeric(seller_stats[col], errors='coerce')
+    
+    # テキスト列を文字列型に変換
+    for col in text_columns:
+        seller_stats[col] = seller_stats[col].astype(str)
+    
+    # 表示用のフォーマットを適用
+    display_stats = seller_stats.copy()
+    display_stats['出品件数'] = display_stats['出品件数'].apply(format_number)
+    display_stats['平均開始価格'] = display_stats['平均開始価格'].apply(format_price)
+    display_stats['最小開始価格'] = display_stats['最小開始価格'].apply(format_price)
+    display_stats['最大開始価格'] = display_stats['最大開始価格'].apply(format_price)
+    display_stats['落札価格合計'] = display_stats['落札価格合計'].apply(format_price)
+    display_stats['平均落札価格'] = display_stats['平均落札価格'].apply(format_price)
+    display_stats['最小落札価格'] = display_stats['最小落札価格'].apply(format_price)
+    display_stats['最大落札価格'] = display_stats['最大落札価格'].apply(format_price)
+    display_stats['平均入札数'] = display_stats['平均入札数'].apply(lambda x: f"{x:.1f}")
+    display_stats['最大入札数'] = display_stats['最大入札数'].apply(format_number)
     
     # 表示する列を選択
     display_columns = [
@@ -440,7 +457,7 @@ def show_dashboard():
     
     # データフレームを表示
     st.dataframe(
-        seller_stats[display_columns],
+        display_stats[display_columns],
         column_config=column_config,
         hide_index=True
     )
