@@ -421,22 +421,27 @@ def show_dashboard():
     seller_stats['平均入札数'] = seller_stats['平均入札数'].apply(lambda x: f"{x:.1f}")
     seller_stats['最大入札数'] = seller_stats['最大入札数'].apply(format_number)
     
-    # 出品者名とURLを組み合わせてリンク形式に変換
-    seller_stats['出品者リンク'] = seller_stats.apply(
-        lambda row: f"[{row['出品者']}]({row['出品者URL']})", axis=1
-    )
-    
     # 表示する列を選択
     display_columns = [
-        '出品者リンク', '出品件数',
+        '出品者', '出品件数',
         '平均開始価格', '最小開始価格', '最大開始価格',
         '落札価格合計', '平均落札価格', '最小落札価格', '最大落札価格',
-        '平均入札数', '最大入札数'
+        '平均入札数', '最大入札数', '出品者URL'
     ]
+    
+    # カラム設定を定義
+    column_config = {
+        '出品者URL': st.column_config.LinkColumn(
+            label='出品者ページ',
+            help='出品者のYahoo!オークションページへのリンク',
+            display_text='プロフィールを見る'
+        )
+    }
     
     # データフレームを表示
     st.dataframe(
-        seller_stats[display_columns].rename(columns={'出品者リンク': '出品者'}),
+        seller_stats[display_columns],
+        column_config=column_config,
         hide_index=True
     )
 
