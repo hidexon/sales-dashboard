@@ -364,14 +364,15 @@ def delete_all_data():
 
 def show_dashboard():
     """ダッシュボード画面"""
-    st.title("📊 オークション分析ダッシュボード")
-    st.markdown("---")
-
+    st.header("📊 オークション分析ダッシュボード")
+    
+    # データの読み込み
     df = load_data()
+    
     if df.empty:
-        st.warning("データが存在しません。左のメニューから「データ登録」を選択してデータを登録してください。")
+        st.warning("データが存在しません")
         return
-
+    
     # データの総件数を確認
     total_items = len(df)
     
@@ -465,63 +466,43 @@ def show_dashboard():
     """
     st.markdown(cell_center_css, unsafe_allow_html=True)
     
-    # テーブルとして表示（ページネーション付き）
-    try:
-        # 表示用のデータフレームを作成
-        display_stats = seller_stats.copy()
-        
-        # データフレームを表示
-        st.dataframe(
-            display_stats,
-            column_config={
-                'セラー': st.column_config.LinkColumn(
-                    'セラー',
-                    help='出品者名（クリックで出品者ページを開きます）',
-                    width='medium',
-                    url='出品者URL'
-                ),
-                '件数': st.column_config.NumberColumn(
-                    '件数',
-                    help='出品商品数',
-                    format='%d',
-                    width='small'
-                ),
-                '平均開始価格': st.column_config.NumberColumn(
-                    '平均開始価格',
-                    help='商品の平均開始価格',
-                    format='¥%d',
-                    width='medium'
-                ),
-                '落札価格合計': st.column_config.NumberColumn(
-                    '落札価格合計',
-                    help='総売上金額',
-                    format='¥%d',
-                    width='medium'
-                ),
-                '平均落札価格': st.column_config.NumberColumn(
-                    '平均落札価格',
-                    help='商品の平均落札価格',
-                    format='¥%d',
-                    width='medium'
-                ),
-                '平均入札件数': st.column_config.NumberColumn(
-                    '平均入札件数',
-                    help='商品の平均入札件数',
-                    format='%.1f',
-                    width='medium'
-                )
-            },
-            hide_index=True
-        )
-        
-    except Exception as e:
-        st.error(f"データの表示中にエラーが発生しました: {str(e)}")
-        # フォールバック：シンプルなテーブル表示
-        st.dataframe(
-            display_stats,
-            hide_index=True,
-            use_container_width=True
-        )
+    # データテーブルの表示
+    st.subheader("📋 取引データ")
+    
+    # 出品者名とURLを組み合わせてリンク形式に変換
+    df['出品者リンク'] = df.apply(lambda row: f"[{row['seller']}]({row['seller_url']})", axis=1)
+    df['商品リンク'] = df.apply(lambda row: f"[{row['title']}]({row['product_url']})", axis=1)
+    
+    # 表示用のデータフレームを作成
+    display_df = df.copy()
+    display_df['タイムスタンプ'] = display_df['timestamp'].dt.strftime('%Y/%m/%d %H:%M')
+    display_df['開始価格'] = display_df['start_price'].apply(format_price)
+    display_df['落札価格'] = display_df['final_price'].apply(format_price)
+    display_df['入札数'] = display_df['bid_count'].apply(format_number)
+    
+    # 表示する列を選択
+    display_columns = {
+        'タイムスタンプ': '取引日時',
+        'category': 'カテゴリ',
+        '商品リンク': '商品名',
+        '開始価格': '開始価格',
+        '落札価格': '落札価格',
+        '入札数': '入札数',
+        'buyer': '落札者',
+        '出品者リンク': '出品者'
+    }
+    
+    display_df = display_df[display_columns.keys()].rename(columns=display_columns)
+    
+    # データフレームを表示（リンクを有効にするための設定）
+    st.dataframe(
+        display_df,
+        column_config={
+            '商品名': st.column_config.TextColumn(disable_editor=True),
+            '出品者': st.column_config.TextColumn(disable_editor=True)
+        },
+        hide_index=True
+    )
 
 def main():
     """メイン関数"""
