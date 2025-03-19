@@ -253,7 +253,8 @@ def show_data_management():
 def delete_all_data():
     try:
         # 現在のデータ数を確認
-        response = init_connection().table('sales').select('*').execute()
+        supabase = init_connection()
+        response = supabase.table('auction_data').select('*').execute()
         current_count = len(response.data)
         
         if current_count == 0:
@@ -261,16 +262,16 @@ def delete_all_data():
             return False
             
         # データを削除
-        result = init_connection().table('sales').delete().neq('id', 0).execute()
+        result = supabase.table('auction_data').delete().neq('id', 0).execute()
         
         # 削除後のデータ数を確認
-        after_response = init_connection().table('sales').select('*').execute()
+        after_response = supabase.table('auction_data').select('*').execute()
         after_count = len(after_response.data)
         
         if after_count == 0:
             st.success(f"全てのデータ（{current_count}件）を削除しました。")
             # キャッシュをクリア
-            load_data.clear()
+            st.cache_data.clear()
             return True
         else:
             st.error(f"データの削除が完全ではありません。（削除前: {current_count}件, 削除後: {after_count}件）")
