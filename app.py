@@ -146,9 +146,8 @@ def show_data_upload():
 
     # CSVファイルのテンプレートをダウンロード
     st.subheader("1. CSVテンプレートのダウンロード")
-    template_csv = """タイムスタンプ,タイトル,開始価格,落札価格,入札数,落札者,出品者,商品URL
-03/18 13:59,"NN0056【１点限り】A4 ポスター 美女 美少女 オリジナルアート 同人イラスト コスプレ 可愛い スポーツ少女",70,70,1,取得対象外,bonbobon7,"https://auctions.yahoo.co.jp/jp/auction/o1177115124"
-2025/03/16 23:59:00,"別の商品例",1000,1500,5,buyer_name,seller_name,"https://example.com/item123\""""
+    template_csv = """タイムスタンプ,カテゴリ,タイトル,開始価格,落札価格,入札数,落札者,出品者,出品者URL,商品URL
+2025/3/18 23:59,その他 > アダルト > ポスター,サンプル商品,590,590,2,取得対象外,sryy4000,https://auctions.yahoo.co.jp/seller/sryy4000,https://auctions.yahoo.co.jp/jp/auction/g1177417715"""
     st.download_button(
         label="CSVテンプレートをダウンロード",
         data=template_csv,
