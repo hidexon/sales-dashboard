@@ -470,32 +470,50 @@ def show_dashboard():
         # 表示用のデータフレームを作成
         display_stats = seller_stats.copy()
         
-        # セラー列にHTMLリンクを追加
+        # セラー列をHTMLリンクに変換
         display_stats['セラー'] = display_stats.apply(
-            lambda row: f'<a href="{row["出品者URL"]}" target="_blank">{row["セラー"]}</a>',
+            lambda row: f'<a href="{seller_stats.loc[row.name, "出品者URL"]}" target="_blank">{row["セラー"]}</a>',
             axis=1
         )
         
         # 出品者URL列を削除
-        display_stats = display_stats.drop(columns=['出品者URL'])
+        display_stats = display_stats.drop('出品者URL', axis=1, errors='ignore')
         
+        # データフレームを表示
         st.dataframe(
             display_stats,
             column_config={
-                'セラー': st.column_config.Column(
+                'セラー': st.column_config.TextColumn(
                     'セラー',
-                    help="出品者名（クリックで出品者ページへ）",
-                    width="medium",
-                    unsafe_allow_html=True
+                    help='出品者名（クリックで出品者ページへ）',
+                    width='medium'
                 ),
-                '件数': st.column_config.NumberColumn('件数', help="出品数", format="%d"),
-                '平均開始価格': st.column_config.NumberColumn('平均開始価格', help="平均開始価格", format="¥%d"),
-                '落札価格合計': st.column_config.NumberColumn('落札価格合計', help="総売上", format="¥%d"),
-                '平均落札価格': st.column_config.NumberColumn('平均落札価格', help="平均落札価格", format="¥%d"),
-                '平均入札件数': st.column_config.NumberColumn('平均入札件数', help="平均入札数", format="%.2f")
+                '出品数': st.column_config.NumberColumn(
+                    '出品数',
+                    help='出品商品数',
+                    format='%d',
+                    width='small'
+                ),
+                '総売上': st.column_config.NumberColumn(
+                    '総売上',
+                    help='総売上金額',
+                    format='¥%d',
+                    width='medium'
+                ),
+                '平均価格': st.column_config.NumberColumn(
+                    '平均価格',
+                    help='商品の平均価格',
+                    format='¥%d',
+                    width='medium'
+                ),
+                '売上率': st.column_config.NumberColumn(
+                    '売上率',
+                    help='売上率（%）：総売上/（出品数×平均価格）',
+                    format='%.1f%%',
+                    width='medium'
+                )
             },
-            hide_index=True,
-            use_container_width=True
+            hide_index=True
         )
             
     except Exception as e:
