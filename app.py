@@ -473,7 +473,8 @@ def show_dashboard():
                 'セラー',
                 help="出品者名（クリックで出品者ページへ）",
                 width="medium",
-                url='出品者URL'
+                url='出品者URL',
+                display_text='セラー'
             ),
             '件数': st.column_config.NumberColumn('件数', help="出品数", format="%d"),
             '平均開始価格': st.column_config.NumberColumn('平均開始価格', help="平均開始価格", format="¥%d"),
