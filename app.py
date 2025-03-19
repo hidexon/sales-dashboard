@@ -448,6 +448,61 @@ def show_dashboard():
     
     # カラム設定を定義
     column_config = {
+        '出品者': st.column_config.TextColumn(
+            label='出品者',
+            help='出品者名',
+            width='medium'
+        ),
+        '出品件数': st.column_config.NumberColumn(
+            label='出品件数',
+            help='出品した商品の総数',
+            format='%d'
+        ),
+        '平均開始価格': st.column_config.NumberColumn(
+            label='平均開始価格',
+            help='出品価格の平均値',
+            format='¥%d'
+        ),
+        '最小開始価格': st.column_config.NumberColumn(
+            label='最小開始価格',
+            help='最も安い出品価格',
+            format='¥%d'
+        ),
+        '最大開始価格': st.column_config.NumberColumn(
+            label='最大開始価格',
+            help='最も高い出品価格',
+            format='¥%d'
+        ),
+        '落札価格合計': st.column_config.NumberColumn(
+            label='落札価格合計',
+            help='全商品の落札価格の合計',
+            format='¥%d'
+        ),
+        '平均落札価格': st.column_config.NumberColumn(
+            label='平均落札価格',
+            help='落札価格の平均値',
+            format='¥%d'
+        ),
+        '最小落札価格': st.column_config.NumberColumn(
+            label='最小落札価格',
+            help='最も安い落札価格',
+            format='¥%d'
+        ),
+        '最大落札価格': st.column_config.NumberColumn(
+            label='最大落札価格',
+            help='最も高い落札価格',
+            format='¥%d'
+        ),
+        '平均入札数': st.column_config.NumberColumn(
+            label='平均入札数',
+            help='1商品あたりの平均入札数',
+            format='%.1f'
+        ),
+        '最大入札数': st.column_config.NumberColumn(
+            label='最大入札数',
+            help='最も入札が多かった商品の入札数',
+            format='%d'
+        ),
         '出品者URL': st.column_config.LinkColumn(
             label='出品者ページ',
             help='出品者のYahoo!オークションページへのリンク',
