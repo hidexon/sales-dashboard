@@ -185,27 +185,45 @@ def show_data_upload():
                             timestamp = pd.to_datetime(row['タイムスタンプ'])
                             formatted_date = timestamp.strftime('%Y-%m-%d %H:%M:%S')
                             
+                            # 数値データの前処理
+                            start_price = int(str(row['開始価格']).replace(',', '').strip())
+                            end_price = int(str(row['落札価格']).replace(',', '').strip())
+                            bids = int(str(row['入札数']).replace(',', '').strip())
+                            
                             # データを登録
                             data = {
                                 'timestamp': formatted_date,
-                                'category': row['カテゴリ'],
-                                'title': row['タイトル'],
-                                'start_price': row['開始価格'],
-                                'end_price': row['落札価格'],
-                                'bids': row['入札数'],
-                                'winner': row['落札者'],
-                                'seller': row['出品者'],
-                                'seller_url': row['出品者URL'],
-                                'item_url': row['商品URL']
+                                'category': str(row['カテゴリ']).strip(),
+                                'title': str(row['タイトル']).strip(),
+                                'start_price': start_price,
+                                'final_price': end_price,  # end_priceをfinal_priceに変更
+                                'bid_count': bids,  # bidsをbid_countに変更
+                                'buyer': str(row['落札者']).strip(),  # winnerをbuyerに変更
+                                'seller': str(row['出品者']).strip(),
+                                'seller_url': str(row['出品者URL']).strip(),
+                                'product_url': str(row['商品URL']).strip()  # item_urlをproduct_urlに変更
                             }
-                            supabase.table('sales').insert(data).execute()
+                            
+                            # Supabaseクライアントの初期化
+                            supabase = init_connection()
+                            if not supabase:
+                                raise Exception("データベース接続に失敗しました")
+                                
+                            # データを登録
+                            result = supabase.table('sales').insert(data).execute()
+                            if result.error:
+                                raise Exception(result.error.message)
+                                
                             success_count += 1
                         except Exception as e:
                             error_count += 1
                             error_messages.append(f"行 {_+1}: {str(e)}")
+                            st.error(f"エラー詳細: {str(e)}")
+                            st.error(f"問題のあるデータ: {row.to_dict()}")
                 except Exception as e:
                     error_count += 1
                     error_messages.append(f"ファイル {uploaded_file.name}: {str(e)}")
+                    st.error(f"ファイル処理エラー: {str(e)}")
         
         # 結果を表示
         st.success(f"処理完了！\n- 合計行数: {total_rows}\n- 成功: {success_count}\n- エラー: {error_count}")
