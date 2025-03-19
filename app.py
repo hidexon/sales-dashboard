@@ -470,57 +470,50 @@ def show_dashboard():
         # 表示用のデータフレームを作成
         display_stats = seller_stats.copy()
         
-        # セラー列をHTMLリンクに変換
-        display_stats['セラー'] = display_stats.apply(
-            lambda row: f'<a href="{row["出品者URL"]}" target="_blank">{row["セラー"]}</a>',
-            axis=1
-        )
-        
-        # 出品者URL列を削除
-        display_stats = display_stats.drop('出品者URL', axis=1, errors='ignore')
-        
         # データフレームを表示
         st.dataframe(
             display_stats,
             column_config={
-                'セラー': st.column_config.TextColumn(
+                'セラー': st.column_config.LinkColumn(
                     'セラー',
-                    help='出品者名',
-                    width='medium'
+                    help='出品者名（クリックで出品者ページを開きます）',
+                    width='medium',
+                    url='出品者URL'
                 ),
-                '出品数': st.column_config.NumberColumn(
-                    '出品数',
+                '件数': st.column_config.NumberColumn(
+                    '件数',
                     help='出品商品数',
                     format='%d',
                     width='small'
                 ),
-                '総売上': st.column_config.NumberColumn(
-                    '総売上',
+                '平均開始価格': st.column_config.NumberColumn(
+                    '平均開始価格',
+                    help='商品の平均開始価格',
+                    format='¥%d',
+                    width='medium'
+                ),
+                '落札価格合計': st.column_config.NumberColumn(
+                    '落札価格合計',
                     help='総売上金額',
                     format='¥%d',
                     width='medium'
                 ),
-                '平均価格': st.column_config.NumberColumn(
-                    '平均価格',
-                    help='商品の平均価格',
+                '平均落札価格': st.column_config.NumberColumn(
+                    '平均落札価格',
+                    help='商品の平均落札価格',
                     format='¥%d',
                     width='medium'
                 ),
-                '売上率': st.column_config.NumberColumn(
-                    '売上率',
-                    help='売上率（%）：総売上/（出品数×平均価格）',
-                    format='%.1f%%',
+                '平均入札件数': st.column_config.NumberColumn(
+                    '平均入札件数',
+                    help='商品の平均入札件数',
+                    format='%.1f',
                     width='medium'
                 )
             },
             hide_index=True
         )
         
-        # 出品者リンクを表示
-        st.markdown("### 出品者リンク")
-        for _, row in seller_stats.iterrows():
-            st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
-            
     except Exception as e:
         st.error(f"データの表示中にエラーが発生しました: {str(e)}")
         # フォールバック：シンプルなテーブル表示
