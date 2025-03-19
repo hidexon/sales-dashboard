@@ -429,11 +429,6 @@ def show_dashboard():
     if total_items != total_items_by_seller:
         st.warning(f"⚠️ データの不一致が検出されました。総件数: {total_items:,}, セラー別合計: {total_items_by_seller:,}")
     
-    # 出品者リンクを表示（データフレームの上に表示）
-    st.markdown("### 🔗 出品者リンク")
-    for _, row in seller_stats.iterrows():
-        st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
-    
     # カスタムCSSでセルを中央揃えにする
     cell_center_css = """
     <style>
@@ -475,6 +470,12 @@ def show_dashboard():
         # 表示用のデータフレームを作成
         display_stats = seller_stats.copy()
         
+        # セラー列をHTMLリンクに変換
+        display_stats['セラー'] = display_stats.apply(
+            lambda row: f'<a href="{row["出品者URL"]}" target="_blank">{row["セラー"]}</a>',
+            axis=1
+        )
+        
         # 出品者URL列を削除
         display_stats = display_stats.drop('出品者URL', axis=1, errors='ignore')
         
@@ -484,7 +485,7 @@ def show_dashboard():
             column_config={
                 'セラー': st.column_config.TextColumn(
                     'セラー',
-                    help='出品者名',
+                    help='出品者名（クリックで出品者ページへ）',
                     width='medium'
                 ),
                 '出品数': st.column_config.NumberColumn(
@@ -512,7 +513,8 @@ def show_dashboard():
                     width='medium'
                 )
             },
-            hide_index=True
+            hide_index=True,
+            unsafe_allow_html=True
         )
             
     except Exception as e:
