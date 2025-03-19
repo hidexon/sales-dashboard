@@ -485,7 +485,7 @@ def show_dashboard():
             column_config={
                 'セラー': st.column_config.TextColumn(
                     'セラー',
-                    help='出品者名（クリックで出品者ページへ）',
+                    help='出品者名',
                     width='medium'
                 ),
                 '出品数': st.column_config.NumberColumn(
@@ -513,9 +513,13 @@ def show_dashboard():
                     width='medium'
                 )
             },
-            hide_index=True,
-            unsafe_allow_html=True
+            hide_index=True
         )
+        
+        # 出品者リンクを表示
+        st.markdown("### 出品者リンク")
+        for _, row in seller_stats.iterrows():
+            st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
             
     except Exception as e:
         st.error(f"データの表示中にエラーが発生しました: {str(e)}")
