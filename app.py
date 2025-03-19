@@ -400,14 +400,25 @@ def show_dashboard():
     seller_stats.columns = ['セラー', '件数', '平均開始価格', '落札価格合計', '平均落札価格', '平均入札件数']
 
     # ソートオプションを追加
-    sort_column = st.selectbox(
-        "ソート基準",
-        ["件数", "落札価格合計", "平均開始価格", "平均落札価格", "平均入札件数"],
-        index=1  # デフォルトで落札価格合計を選択
-    )
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        sort_column = st.selectbox(
+            "ソート基準",
+            ["件数", "落札価格合計", "平均開始価格", "平均落札価格", "平均入札件数"],
+            index=1  # デフォルトで落札価格合計を選択
+        )
+    with col2:
+        sort_order = st.selectbox(
+            "ソート順",
+            ["降順", "昇順"],
+            index=0  # デフォルトで降順を選択
+        )
     
     # 選択された列でソート（数値のままソート）
-    seller_stats = seller_stats.sort_values(sort_column, ascending=False)
+    seller_stats = seller_stats.sort_values(
+        sort_column,
+        ascending=(sort_order == "昇順")
+    )
 
     # 表示用のデータフレームを作成（ソート後にフォーマット）
     formatted_stats = seller_stats.copy()
