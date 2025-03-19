@@ -420,16 +420,13 @@ def show_dashboard():
         ascending=(sort_order == "昇順")
     )
 
-    # 表示用のデータフレームを作成（ソート後にフォーマット）
-    formatted_stats = seller_stats.copy()
-    formatted_stats['件数'] = formatted_stats['件数'].astype(int).apply(lambda x: f"{x:,}")
-    formatted_stats['平均開始価格'] = formatted_stats['平均開始価格'].apply(lambda x: f"¥{x:,.0f}")
-    formatted_stats['落札価格合計'] = formatted_stats['落札価格合計'].astype(int).apply(lambda x: f"¥{x:,}")
-    formatted_stats['平均落札価格'] = formatted_stats['平均落札価格'].apply(lambda x: f"¥{x:,.0f}")
-    formatted_stats['平均入札件数'] = formatted_stats['平均入札件数'].apply(lambda x: f"{x:.2f}")
-
-    # セラー別集計の合計を表示
+    # 表示中のセラー数を表示
     st.write(f"表示中のセラー数：{len(seller_stats):,}")
+
+    # データの整合性チェック
+    total_items_by_seller = seller_stats['件数'].sum()
+    if total_items != total_items_by_seller:
+        st.warning(f"⚠️ データの不一致が検出されました。総件数: {total_items:,}, セラー別合計: {total_items_by_seller:,}")
     
     # カスタムCSSでセルを中央揃えにする
     cell_center_css = """
@@ -469,23 +466,18 @@ def show_dashboard():
     
     # テーブルとして表示（ページネーション付き）
     st.dataframe(
-        formatted_stats,
+        seller_stats,
         column_config={
             'セラー': st.column_config.TextColumn('セラー', help="出品者名"),
-            '件数': st.column_config.TextColumn('件数', help="出品数"),
-            '平均開始価格': st.column_config.TextColumn('平均開始価格', help="平均開始価格"),
-            '落札価格合計': st.column_config.TextColumn('落札価格合計', help="総売上"),
-            '平均落札価格': st.column_config.TextColumn('平均落札価格', help="平均落札価格"),
-            '平均入札件数': st.column_config.TextColumn('平均入札件数', help="平均入札数")
+            '件数': st.column_config.NumberColumn('件数', help="出品数", format="%d"),
+            '平均開始価格': st.column_config.NumberColumn('平均開始価格', help="平均開始価格", format="¥%d"),
+            '落札価格合計': st.column_config.NumberColumn('落札価格合計', help="総売上", format="¥%d"),
+            '平均落札価格': st.column_config.NumberColumn('平均落札価格', help="平均落札価格", format="¥%d"),
+            '平均入札件数': st.column_config.NumberColumn('平均入札件数', help="平均入札数", format="%.2f")
         },
         hide_index=True,
         use_container_width=True
     )
-
-    # データの整合性チェック
-    total_items_by_seller = sum(int(x.replace(',', '')) for x in formatted_stats['件数'])
-    if total_items != total_items_by_seller:
-        st.warning(f"⚠️ データの不一致が検出されました。総件数: {total_items:,}, セラー別合計: {total_items_by_seller:,}")
 
 def main():
     """メイン関数"""
