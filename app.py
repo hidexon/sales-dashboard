@@ -470,12 +470,6 @@ def show_dashboard():
         # 表示用のデータフレームを作成
         display_stats = seller_stats.copy()
         
-        # セラー列をHTMLリンクに変換
-        display_stats['セラー'] = display_stats.apply(
-            lambda row: f'<a href="{seller_stats.loc[row.name, "出品者URL"]}" target="_blank">{row["セラー"]}</a>',
-            axis=1
-        )
-        
         # 出品者URL列を削除
         display_stats = display_stats.drop('出品者URL', axis=1, errors='ignore')
         
@@ -485,7 +479,7 @@ def show_dashboard():
             column_config={
                 'セラー': st.column_config.TextColumn(
                     'セラー',
-                    help='出品者名（クリックで出品者ページへ）',
+                    help='出品者名',
                     width='medium'
                 ),
                 '出品数': st.column_config.NumberColumn(
@@ -515,19 +509,20 @@ def show_dashboard():
             },
             hide_index=True
         )
-            
-    except Exception as e:
-        st.error(f"データの表示中にエラーが発生しました: {str(e)}")
-        # フォールバック：シンプルなテーブル表示とリンクの別表示
-        st.dataframe(
-            display_stats.drop(columns=['出品者URL']) if '出品者URL' in display_stats.columns else display_stats,
-            hide_index=True,
-            use_container_width=True
-        )
-        # エラー時は別途リンクを表示
+        
+        # 出品者リンクを表示
         st.markdown("### 出品者リンク")
         for _, row in seller_stats.iterrows():
             st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
+            
+    except Exception as e:
+        st.error(f"データの表示中にエラーが発生しました: {str(e)}")
+        # フォールバック：シンプルなテーブル表示
+        st.dataframe(
+            display_stats,
+            hide_index=True,
+            use_container_width=True
+        )
 
 def main():
     """メイン関数"""
