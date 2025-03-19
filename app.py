@@ -513,7 +513,8 @@ def show_dashboard():
                     width='medium'
                 )
             },
-            hide_index=True
+            hide_index=True,
+            unsafe_allow_html=True
         )
             
     except Exception as e:
