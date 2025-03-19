@@ -5,6 +5,8 @@ from supabase import create_client
 import pytz
 from io import StringIO
 import csv
+import os
+import numpy as np
 
 # ページ設定
 st.set_page_config(
@@ -230,50 +232,53 @@ def show_data_management():
     total_count = len(df)
     st.info(f"現在のデータ件数: {total_count:,} 件")
 
-    st.subheader("データの削除")
-    col1, col2 = st.columns(2)
+    # 削除ボタンと確認プロセス
+    delete_container = st.empty()
+    confirm_container = st.empty()
+    final_confirm_container = st.empty()
     
-    with col1:
-        if st.button("全データを削除", type="primary"):
-            if st.button("本当に全データを削除しますか？", type="primary"):
-                try:
-                    supabase = init_connection()
-                    supabase.table('sales').delete().neq('id', 0).execute()
-                    load_data.clear()
-                    st.success("全データを削除しました")
+    if delete_container.button("データを全て削除"):
+        confirm_container.warning("⚠️ 本当にすべてのデータを削除しますか？")
+        if confirm_container.button("はい、削除します"):
+            final_confirm_container.error("⚠️ 最終確認: この操作は取り消せません。本当に削除しますか？")
+            if final_confirm_container.button("はい、完全に削除します"):
+                if delete_all_data():
+                    # すべてのコンテナをクリア
+                    delete_container.empty()
+                    confirm_container.empty()
+                    final_confirm_container.empty()
+                    # 画面を更新
                     st.rerun()
-                except Exception as e:
-                    st.error(f"データ削除中にエラーが発生しました: {str(e)}")
 
-    with col2:
-        st.write("期間を指定して削除")
-        if not df.empty:
-            min_date = df['timestamp'].min()
-            max_date = df['timestamp'].max()
-            selected_dates = st.date_input(
-                "削除する期間を選択",
-                value=(min_date, max_date),
-                min_value=min_date.date(),
-                max_value=max_date.date()
-            )
+def delete_all_data():
+    try:
+        # 現在のデータ数を確認
+        response = init_connection().table('sales').select('*').execute()
+        current_count = len(response.data)
+        
+        if current_count == 0:
+            st.warning("削除するデータが存在しません。")
+            return False
             
-            if len(selected_dates) == 2 and st.button("選択期間のデータを削除"):
-                try:
-                    start_date, end_date = selected_dates
-                    start_datetime = datetime.combine(start_date, datetime.min.time())
-                    end_datetime = datetime.combine(end_date, datetime.max.time())
-                    
-                    supabase = init_connection()
-                    supabase.table('sales').delete() \
-                        .gte('timestamp', start_datetime.isoformat()) \
-                        .lte('timestamp', end_datetime.isoformat()) \
-                        .execute()
-                    
-                    load_data.clear()
-                    st.success(f"{start_date}から{end_date}までのデータを削除しました")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"データ削除中にエラーが発生しました: {str(e)}")
+        # データを削除
+        result = init_connection().table('sales').delete().neq('id', 0).execute()
+        
+        # 削除後のデータ数を確認
+        after_response = init_connection().table('sales').select('*').execute()
+        after_count = len(after_response.data)
+        
+        if after_count == 0:
+            st.success(f"全てのデータ（{current_count}件）を削除しました。")
+            # キャッシュをクリア
+            load_data.clear()
+            return True
+        else:
+            st.error(f"データの削除が完全ではありません。（削除前: {current_count}件, 削除後: {after_count}件）")
+            return False
+            
+    except Exception as e:
+        st.error(f"データの削除中にエラーが発生しました: {str(e)}")
+        return False
 
 def show_dashboard():
     """ダッシュボード画面"""
