@@ -431,6 +431,17 @@ def show_dashboard():
     for col in text_columns:
         seller_stats[col] = seller_stats[col].astype(str)
     
+    # 表示用のデータフレームを作成
+    display_stats = seller_stats.copy()
+    
+    # 金額の列に3桁区切りのフォーマットを適用
+    price_columns = [
+        '平均開始価格', '最小開始価格', '最大開始価格',
+        '落札価格合計', '平均落札価格', '最小落札価格', '最大落札価格'
+    ]
+    for col in price_columns:
+        display_stats[col] = display_stats[col].apply(lambda x: f"¥{int(x):,}")
+    
     # カラム設定を定義
     column_config = {
         '出品者': st.column_config.TextColumn(
@@ -443,40 +454,40 @@ def show_dashboard():
             help='出品した商品の総数',
             format="%d"
         ),
-        '平均開始価格': st.column_config.NumberColumn(
+        '平均開始価格': st.column_config.TextColumn(
             label='平均開始価格',
             help='出品価格の平均値',
-            format="¥{:,.0f}"
+            width='medium'
         ),
-        '最小開始価格': st.column_config.NumberColumn(
+        '最小開始価格': st.column_config.TextColumn(
             label='最小開始価格',
             help='最も安い出品価格',
-            format="¥{:,.0f}"
+            width='medium'
         ),
-        '最大開始価格': st.column_config.NumberColumn(
+        '最大開始価格': st.column_config.TextColumn(
             label='最大開始価格',
             help='最も高い出品価格',
-            format="¥{:,.0f}"
+            width='medium'
         ),
-        '落札価格合計': st.column_config.NumberColumn(
+        '落札価格合計': st.column_config.TextColumn(
             label='落札価格合計',
             help='全商品の落札価格の合計',
-            format="¥{:,.0f}"
+            width='medium'
         ),
-        '平均落札価格': st.column_config.NumberColumn(
+        '平均落札価格': st.column_config.TextColumn(
             label='平均落札価格',
             help='落札価格の平均値',
-            format="¥{:,.0f}"
+            width='medium'
         ),
-        '最小落札価格': st.column_config.NumberColumn(
+        '最小落札価格': st.column_config.TextColumn(
             label='最小落札価格',
             help='最も安い落札価格',
-            format="¥{:,.0f}"
+            width='medium'
         ),
-        '最大落札価格': st.column_config.NumberColumn(
+        '最大落札価格': st.column_config.TextColumn(
             label='最大落札価格',
             help='最も高い落札価格',
-            format="¥{:,.0f}"
+            width='medium'
         ),
         '平均入札数': st.column_config.NumberColumn(
             label='平均入札数',
@@ -497,7 +508,7 @@ def show_dashboard():
     
     # データフレームを表示
     st.dataframe(
-        seller_stats,
+        display_stats,
         column_config=column_config,
         hide_index=True
     )
