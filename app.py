@@ -509,11 +509,6 @@ def show_dashboard():
             },
             hide_index=True
         )
-        
-        # 出品者リンクを表示
-        st.markdown("### 出品者リンク")
-        for _, row in seller_stats.iterrows():
-            st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
             
     except Exception as e:
         st.error(f"データの表示中にエラーが発生しました: {str(e)}")
@@ -523,6 +518,11 @@ def show_dashboard():
             hide_index=True,
             use_container_width=True
         )
+    
+    # 出品者リンクを表示（エラーが発生しても表示される）
+    st.markdown("### 出品者リンク")
+    for _, row in seller_stats.iterrows():
+        st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
 
 def main():
     """メイン関数"""
