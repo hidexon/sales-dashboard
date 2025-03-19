@@ -429,6 +429,11 @@ def show_dashboard():
     if total_items != total_items_by_seller:
         st.warning(f"⚠️ データの不一致が検出されました。総件数: {total_items:,}, セラー別合計: {total_items_by_seller:,}")
     
+    # 出品者リンクを表示（データフレームの上に表示）
+    st.markdown("### 🔗 出品者リンク")
+    for _, row in seller_stats.iterrows():
+        st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
+    
     # カスタムCSSでセルを中央揃えにする
     cell_center_css = """
     <style>
@@ -518,11 +523,6 @@ def show_dashboard():
             hide_index=True,
             use_container_width=True
         )
-    
-    # 出品者リンクを表示（エラーが発生しても表示される）
-    st.markdown("### 出品者リンク")
-    for _, row in seller_stats.iterrows():
-        st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
 
 def main():
     """メイン関数"""
