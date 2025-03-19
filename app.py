@@ -497,10 +497,6 @@ def show_dashboard():
     # データフレームを表示（リンクを有効にするための設定）
     st.dataframe(
         display_df,
-        column_config={
-            '商品名': st.column_config.TextColumn(disable_editor=True),
-            '出品者': st.column_config.TextColumn(disable_editor=True)
-        },
         hide_index=True
     )
 
