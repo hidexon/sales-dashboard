@@ -389,114 +389,54 @@ def show_dashboard():
              f"落札価格の平均：¥{avg_final_price:,.2f}　"
              f"入札件数の平均：{avg_bids:.2f}")
 
-    # セラー別の集計表を作成
-    seller_stats = df.groupby('seller').agg({
-        'title': 'count',  # 件数
-        'start_price': 'mean',  # 平均開始価格
-        'final_price': ['sum', 'mean'],  # 落札価格合計と平均
-        'bid_count': 'mean',  # 平均入札件数
-        'seller_url': 'first'  # 出品者URL（最初のURLを使用）
-    }).reset_index()
-
-    # カラム名を設定
-    seller_stats.columns = ['セラー', '件数', '平均開始価格', '落札価格合計', '平均落札価格', '平均入札件数', '出品者URL']
-
-    # ソートオプションを追加
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        sort_column = st.selectbox(
-            "ソート基準",
-            ["件数", "落札価格合計", "平均開始価格", "平均落札価格", "平均入札件数"],
-            index=1  # デフォルトで落札価格合計を選択
-        )
-    with col2:
-        sort_order = st.selectbox(
-            "ソート順",
-            ["降順", "昇順"],
-            index=0  # デフォルトで降順を選択
-        )
-    
-    # 選択された列でソート（数値のままソート）
-    seller_stats = seller_stats.sort_values(
-        sort_column,
-        ascending=(sort_order == "昇順")
-    )
-
-    # 表示中のセラー数を表示
-    st.write(f"表示中のセラー数：{len(seller_stats):,}")
-
-    # データの整合性チェック
-    total_items_by_seller = seller_stats['件数'].sum()
-    if total_items != total_items_by_seller:
-        st.warning(f"⚠️ データの不一致が検出されました。総件数: {total_items:,}, セラー別合計: {total_items_by_seller:,}")
-    
-    # カスタムCSSでセルを中央揃えにする
-    cell_center_css = """
-    <style>
-        /* データフレーム全体のスタイル */
-        div[data-testid="stDataFrame"] div[data-testid="stHorizontalBlock"] {
-            justify-content: center;
-        }
-        
-        /* ヘッダーセルの中央揃え */
-        div[data-testid="stDataFrame"] th {
-            text-align: center !important;
-        }
-        
-        /* データセルの中央揃え */
-        div[data-testid="stDataFrame"] td {
-            text-align: center !important;
-        }
-        
-        /* セル内のdiv要素の中央揃え */
-        div[data-testid="stDataFrame"] td div {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-        }
-        
-        /* テキストの中央揃え */
-        div[data-testid="stDataFrame"] td div p {
-            text-align: center !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-    </style>
-    """
-    st.markdown(cell_center_css, unsafe_allow_html=True)
-    
     # データテーブルの表示
-    st.subheader("📋 取引データ")
+    st.subheader("📋 セラー別集計データ")
+    
+    # セラー別の集計データを作成
+    seller_stats = df.groupby('seller').agg({
+        'title': 'count',  # 出品件数
+        'start_price': ['mean', 'min', 'max'],  # 開始価格の統計
+        'final_price': ['sum', 'mean', 'min', 'max'],  # 落札価格の統計
+        'bid_count': ['mean', 'max'],  # 入札数の統計
+        'seller_url': 'first'  # 出品者URL
+    }).reset_index()
+    
+    # カラム名を設定
+    seller_stats.columns = [
+        '出品者', '出品件数', 
+        '平均開始価格', '最小開始価格', '最大開始価格',
+        '落札価格合計', '平均落札価格', '最小落札価格', '最大落札価格',
+        '平均入札数', '最大入札数', '出品者URL'
+    ]
+    
+    # 数値のフォーマット
+    seller_stats['出品件数'] = seller_stats['出品件数'].apply(format_number)
+    seller_stats['平均開始価格'] = seller_stats['平均開始価格'].apply(format_price)
+    seller_stats['最小開始価格'] = seller_stats['最小開始価格'].apply(format_price)
+    seller_stats['最大開始価格'] = seller_stats['最大開始価格'].apply(format_price)
+    seller_stats['落札価格合計'] = seller_stats['落札価格合計'].apply(format_price)
+    seller_stats['平均落札価格'] = seller_stats['平均落札価格'].apply(format_price)
+    seller_stats['最小落札価格'] = seller_stats['最小落札価格'].apply(format_price)
+    seller_stats['最大落札価格'] = seller_stats['最大落札価格'].apply(format_price)
+    seller_stats['平均入札数'] = seller_stats['平均入札数'].apply(lambda x: f"{x:.1f}")
+    seller_stats['最大入札数'] = seller_stats['最大入札数'].apply(format_number)
     
     # 出品者名とURLを組み合わせてリンク形式に変換
-    df['出品者リンク'] = df.apply(lambda row: f"[{row['seller']}]({row['seller_url']})", axis=1)
-    df['商品リンク'] = df.apply(lambda row: f"[{row['title']}]({row['product_url']})", axis=1)
-    
-    # 表示用のデータフレームを作成
-    display_df = df.copy()
-    display_df['タイムスタンプ'] = display_df['timestamp'].dt.strftime('%Y/%m/%d %H:%M')
-    display_df['開始価格'] = display_df['start_price'].apply(format_price)
-    display_df['落札価格'] = display_df['final_price'].apply(format_price)
-    display_df['入札数'] = display_df['bid_count'].apply(format_number)
+    seller_stats['出品者リンク'] = seller_stats.apply(
+        lambda row: f"[{row['出品者']}]({row['出品者URL']})", axis=1
+    )
     
     # 表示する列を選択
-    display_columns = {
-        'タイムスタンプ': '取引日時',
-        'category': 'カテゴリ',
-        '商品リンク': '商品名',
-        '開始価格': '開始価格',
-        '落札価格': '落札価格',
-        '入札数': '入札数',
-        'buyer': '落札者',
-        '出品者リンク': '出品者'
-    }
+    display_columns = [
+        '出品者リンク', '出品件数',
+        '平均開始価格', '最小開始価格', '最大開始価格',
+        '落札価格合計', '平均落札価格', '最小落札価格', '最大落札価格',
+        '平均入札数', '最大入札数'
+    ]
     
-    display_df = display_df[display_columns.keys()].rename(columns=display_columns)
-    
-    # データフレームを表示（リンクを有効にするための設定）
+    # データフレームを表示
     st.dataframe(
-        display_df,
+        seller_stats[display_columns].rename(columns={'出品者リンク': '出品者'}),
         hide_index=True
     )
 
