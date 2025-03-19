@@ -210,11 +210,14 @@ def show_data_upload():
                                 raise Exception("データベース接続に失敗しました")
                                 
                             # データを登録
-                            result = supabase.table('sales').insert(data).execute()
-                            if result.error:
-                                raise Exception(result.error.message)
+                            try:
+                                result = supabase.table('sales').insert(data).execute()
+                                if not result.data:
+                                    raise Exception("データの登録に失敗しました")
+                                success_count += 1
+                            except Exception as e:
+                                raise Exception(f"データ登録エラー: {str(e)}")
                                 
-                            success_count += 1
                         except Exception as e:
                             error_count += 1
                             error_messages.append(f"行 {_+1}: {str(e)}")
