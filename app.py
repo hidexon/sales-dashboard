@@ -168,6 +168,10 @@ def show_data_upload():
         error_count = 0
         error_messages = []
         
+        # 進捗バーを作成
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
         with st.spinner("データを登録中..."):
             for uploaded_file in uploaded_files:
                 try:
@@ -176,11 +180,17 @@ def show_data_upload():
                     
                     # CSVファイルを読み込む
                     df = pd.read_csv(uploaded_file)
-                    total_rows += len(df)
+                    file_rows = len(df)
+                    total_rows += file_rows
                     
                     # データを登録
-                    for _, row in df.iterrows():
+                    for index, row in df.iterrows():
                         try:
+                            # 進捗状況を更新
+                            current_progress = (success_count + error_count) / total_rows
+                            progress_bar.progress(current_progress)
+                            status_text.text(f"進捗: {success_count + error_count}/{total_rows} 件 (成功: {success_count}, エラー: {error_count})")
+                            
                             # 日付形式の統一
                             timestamp = pd.to_datetime(row['タイムスタンプ'])
                             formatted_date = timestamp.strftime('%Y-%m-%d %H:%M:%S')
@@ -220,7 +230,7 @@ def show_data_upload():
                                 
                         except Exception as e:
                             error_count += 1
-                            error_messages.append(f"行 {_+1}: {str(e)}")
+                            error_messages.append(f"行 {index+1}: {str(e)}")
                             st.error(f"エラー詳細: {str(e)}")
                             st.error(f"問題のあるデータ: {row.to_dict()}")
                 except Exception as e:
@@ -228,8 +238,12 @@ def show_data_upload():
                     error_messages.append(f"ファイル {uploaded_file.name}: {str(e)}")
                     st.error(f"ファイル処理エラー: {str(e)}")
         
+        # 最終的な進捗を表示
+        progress_bar.progress(1.0)
+        status_text.text(f"完了: {total_rows} 件中 {success_count} 件成功, {error_count} 件エラー")
+        
         # 結果を表示
-        st.success(f"処理完了！\n- 合計行数: {total_rows}\n- 成功: {success_count}\n- エラー: {error_count}")
+        st.success(f"処理完了！\n- 合計行数: {total_rows:,}\n- 成功: {success_count:,}\n- エラー: {error_count:,}")
         
         if error_messages:
             st.error("エラーが発生しました:")
