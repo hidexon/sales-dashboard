@@ -425,34 +425,11 @@ def show_dashboard():
     
     # 数値列を数値型に変換（NaNを0に置換）
     for col in numeric_columns:
-        seller_stats[col] = pd.to_numeric(seller_stats[col], errors='coerce').fillna(0)
+        seller_stats[col] = pd.to_numeric(seller_stats[col], errors='coerce').fillna(0).astype(float)
     
     # テキスト列を文字列型に変換
     for col in text_columns:
         seller_stats[col] = seller_stats[col].astype(str)
-    
-    # 表示用のフォーマットを適用
-    display_stats = seller_stats.copy()
-    
-    # フォーマットを適用
-    display_stats['出品件数'] = display_stats['出品件数'].apply(format_number)
-    display_stats['平均開始価格'] = display_stats['平均開始価格'].apply(format_price)
-    display_stats['最小開始価格'] = display_stats['最小開始価格'].apply(format_price)
-    display_stats['最大開始価格'] = display_stats['最大開始価格'].apply(format_price)
-    display_stats['落札価格合計'] = display_stats['落札価格合計'].apply(format_price)
-    display_stats['平均落札価格'] = display_stats['平均落札価格'].apply(format_price)
-    display_stats['最小落札価格'] = display_stats['最小落札価格'].apply(format_price)
-    display_stats['最大落札価格'] = display_stats['最大落札価格'].apply(format_price)
-    display_stats['平均入札数'] = display_stats['平均入札数'].apply(lambda x: f"{float(x):.1f}")
-    display_stats['最大入札数'] = display_stats['最大入札数'].apply(format_number)
-    
-    # 表示する列を選択
-    display_columns = [
-        '出品者', '出品件数',
-        '平均開始価格', '最小開始価格', '最大開始価格',
-        '落札価格合計', '平均落札価格', '最小落札価格', '最大落札価格',
-        '平均入札数', '最大入札数', '出品者URL'
-    ]
     
     # カラム設定を定義
     column_config = {
@@ -464,52 +441,52 @@ def show_dashboard():
         '出品件数': st.column_config.NumberColumn(
             label='出品件数',
             help='出品した商品の総数',
-            format='%d'
+            format="%d"
         ),
         '平均開始価格': st.column_config.NumberColumn(
             label='平均開始価格',
             help='出品価格の平均値',
-            format='¥%d'
+            format="¥%d"
         ),
         '最小開始価格': st.column_config.NumberColumn(
             label='最小開始価格',
             help='最も安い出品価格',
-            format='¥%d'
+            format="¥%d"
         ),
         '最大開始価格': st.column_config.NumberColumn(
             label='最大開始価格',
             help='最も高い出品価格',
-            format='¥%d'
+            format="¥%d"
         ),
         '落札価格合計': st.column_config.NumberColumn(
             label='落札価格合計',
             help='全商品の落札価格の合計',
-            format='¥%d'
+            format="¥%d"
         ),
         '平均落札価格': st.column_config.NumberColumn(
             label='平均落札価格',
             help='落札価格の平均値',
-            format='¥%d'
+            format="¥%d"
         ),
         '最小落札価格': st.column_config.NumberColumn(
             label='最小落札価格',
             help='最も安い落札価格',
-            format='¥%d'
+            format="¥%d"
         ),
         '最大落札価格': st.column_config.NumberColumn(
             label='最大落札価格',
             help='最も高い落札価格',
-            format='¥%d'
+            format="¥%d"
         ),
         '平均入札数': st.column_config.NumberColumn(
             label='平均入札数',
             help='1商品あたりの平均入札数',
-            format='%.1f'
+            format="%.1f"
         ),
         '最大入札数': st.column_config.NumberColumn(
             label='最大入札数',
             help='最も入札が多かった商品の入札数',
-            format='%d'
+            format="%d"
         ),
         '出品者URL': st.column_config.LinkColumn(
             label='出品者ページ',
@@ -520,7 +497,7 @@ def show_dashboard():
     
     # データフレームを表示
     st.dataframe(
-        display_stats[display_columns],
+        seller_stats,
         column_config=column_config,
         hide_index=True
     )
