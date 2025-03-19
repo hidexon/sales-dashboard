@@ -209,9 +209,15 @@ def show_data_upload():
                             formatted_date = timestamp.strftime('%Y-%m-%d %H:%M:%S')
                             
                             # 数値データの前処理
-                            start_price = int(str(row['開始価格']).replace(',', '').strip())
-                            end_price = int(str(row['落札価格']).replace(',', '').strip())
-                            bids = int(str(row['入札数']).replace(',', '').strip())
+                            def clean_number(value):
+                                """数値データをクリーニングして整数に変換"""
+                                if isinstance(value, (int, float)):
+                                    return int(value)
+                                return int(float(str(value).replace(',', '').strip()))
+                            
+                            start_price = clean_number(row['開始価格'])
+                            end_price = clean_number(row['落札価格'])
+                            bids = clean_number(row['入札数'])
                             
                             # データを登録
                             data = {
