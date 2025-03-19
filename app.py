@@ -466,25 +466,38 @@ def show_dashboard():
     st.markdown(cell_center_css, unsafe_allow_html=True)
     
     # テーブルとして表示（ページネーション付き）
-    st.dataframe(
-        seller_stats,
-        column_config={
-            'セラー': st.column_config.LinkColumn(
-                'セラー',
-                help="出品者名（クリックで出品者ページへ）",
-                width="medium",
-                url='出品者URL',
-                display_text='セラー'
-            ),
-            '件数': st.column_config.NumberColumn('件数', help="出品数", format="%d"),
-            '平均開始価格': st.column_config.NumberColumn('平均開始価格', help="平均開始価格", format="¥%d"),
-            '落札価格合計': st.column_config.NumberColumn('落札価格合計', help="総売上", format="¥%d"),
-            '平均落札価格': st.column_config.NumberColumn('平均落札価格', help="平均落札価格", format="¥%d"),
-            '平均入札件数': st.column_config.NumberColumn('平均入札件数', help="平均入札数", format="%.2f")
-        },
-        hide_index=True,
-        use_container_width=True
-    )
+    try:
+        st.dataframe(
+            seller_stats,
+            column_config={
+                'セラー': st.column_config.TextColumn(
+                    'セラー',
+                    help="出品者名（クリックで出品者ページへ）",
+                    width="medium"
+                ),
+                '件数': st.column_config.NumberColumn('件数', help="出品数", format="%d"),
+                '平均開始価格': st.column_config.NumberColumn('平均開始価格', help="平均開始価格", format="¥%d"),
+                '落札価格合計': st.column_config.NumberColumn('落札価格合計', help="総売上", format="¥%d"),
+                '平均落札価格': st.column_config.NumberColumn('平均落札価格', help="平均落札価格", format="¥%d"),
+                '平均入札件数': st.column_config.NumberColumn('平均入札件数', help="平均入札数", format="%.2f")
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+        
+        # セラー名をクリック可能なリンクとして表示
+        st.markdown("### 出品者リンク")
+        for _, row in seller_stats.iterrows():
+            st.markdown(f"- [{row['セラー']}]({row['出品者URL']})")
+            
+    except Exception as e:
+        st.error(f"データの表示中にエラーが発生しました: {str(e)}")
+        # フォールバック：シンプルなテーブル表示
+        st.dataframe(
+            seller_stats,
+            hide_index=True,
+            use_container_width=True
+        )
 
 def main():
     """メイン関数"""
