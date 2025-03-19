@@ -393,11 +393,12 @@ def show_dashboard():
         'title': 'count',  # 件数
         'start_price': 'mean',  # 平均開始価格
         'final_price': ['sum', 'mean'],  # 落札価格合計と平均
-        'bid_count': 'mean'  # 平均入札件数
+        'bid_count': 'mean',  # 平均入札件数
+        'seller_url': 'first'  # 出品者URL（最初のURLを使用）
     }).reset_index()
 
     # カラム名を設定
-    seller_stats.columns = ['セラー', '件数', '平均開始価格', '落札価格合計', '平均落札価格', '平均入札件数']
+    seller_stats.columns = ['セラー', '件数', '平均開始価格', '落札価格合計', '平均落札価格', '平均入札件数', '出品者URL']
 
     # ソートオプションを追加
     col1, col2 = st.columns([2, 1])
@@ -468,7 +469,12 @@ def show_dashboard():
     st.dataframe(
         seller_stats,
         column_config={
-            'セラー': st.column_config.TextColumn('セラー', help="出品者名"),
+            'セラー': st.column_config.LinkColumn(
+                'セラー',
+                help="出品者名（クリックで出品者ページへ）",
+                width="medium",
+                url='出品者URL'
+            ),
             '件数': st.column_config.NumberColumn('件数', help="出品数", format="%d"),
             '平均開始価格': st.column_config.NumberColumn('平均開始価格', help="平均開始価格", format="¥%d"),
             '落札価格合計': st.column_config.NumberColumn('落札価格合計', help="総売上", format="¥%d"),
