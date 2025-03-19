@@ -7,6 +7,7 @@ from io import StringIO
 import csv
 import os
 import numpy as np
+import time
 
 # ページ設定
 st.set_page_config(
@@ -154,130 +155,131 @@ def show_data_upload():
         mime="text/csv"
     )
     
+    # セッション状態の初期化
+    if 'processing_complete' not in st.session_state:
+        st.session_state.processing_complete = False
+    
     # CSVファイルのアップロード
     st.subheader("2. CSVファイルのアップロード")
     uploaded_files = st.file_uploader(
         "CSVファイルをアップロードしてください（複数ファイル可）",
         type="csv",
-        accept_multiple_files=True,
-        key="csv_uploader"
+        accept_multiple_files=True
     )
     
-    if uploaded_files:
-        if 'processing_complete' not in st.session_state:
-            st.session_state.processing_complete = False
-            
-        if not st.session_state.processing_complete:
-            # 重複チェック用のセット
-            processed_files = set()
-            
-            total_rows = 0
-            success_count = 0
-            error_count = 0
-            error_messages = []
-            
-            # 進捗バーを作成
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            with st.spinner("データを登録中..."):
-                for uploaded_file in uploaded_files:
-                    try:
-                        # ファイル名の重複チェック
-                        if uploaded_file.name in processed_files:
-                            st.warning(f"警告: {uploaded_file.name} は既に処理済みです。スキップします。")
-                            continue
-                        
-                        # ファイル名を表示
-                        st.write(f"処理中: {uploaded_file.name}")
-                        
-                        # CSVファイルを読み込む
-                        df = pd.read_csv(uploaded_file)
-                        file_rows = len(df)
-                        total_rows += file_rows
-                        
-                        # データを登録
-                        for index, row in df.iterrows():
+    if uploaded_files and not st.session_state.processing_complete:
+        # 重複チェック用のセット
+        processed_files = set()
+        
+        total_rows = 0
+        success_count = 0
+        error_count = 0
+        error_messages = []
+        
+        # 進捗バーを作成
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        with st.spinner("データを登録中..."):
+            for uploaded_file in uploaded_files:
+                try:
+                    # ファイル名の重複チェック
+                    if uploaded_file.name in processed_files:
+                        st.warning(f"警告: {uploaded_file.name} は既に処理済みです。スキップします。")
+                        continue
+                    
+                    # ファイル名を表示
+                    st.write(f"処理中: {uploaded_file.name}")
+                    
+                    # CSVファイルを読み込む
+                    df = pd.read_csv(uploaded_file)
+                    file_rows = len(df)
+                    total_rows += file_rows
+                    
+                    # データを登録
+                    for index, row in df.iterrows():
+                        try:
+                            # 進捗状況を更新
+                            current_progress = (success_count + error_count) / total_rows
+                            progress_bar.progress(current_progress)
+                            status_text.text(f"進捗: {success_count + error_count}/{total_rows} 件 (成功: {success_count}, エラー: {error_count})")
+                            
+                            # 日付形式の統一
+                            timestamp = pd.to_datetime(row['タイムスタンプ'])
+                            formatted_date = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                            
+                            # 数値データの前処理
+                            start_price = int(str(row['開始価格']).replace(',', '').strip())
+                            end_price = int(str(row['落札価格']).replace(',', '').strip())
+                            bids = int(str(row['入札数']).replace(',', '').strip())
+                            
+                            # データを登録
+                            data = {
+                                'timestamp': formatted_date,
+                                'category': str(row['カテゴリ']).strip(),
+                                'title': str(row['タイトル']).strip(),
+                                'start_price': start_price,
+                                'final_price': end_price,
+                                'bid_count': bids,
+                                'buyer': str(row['落札者']).strip(),
+                                'seller': str(row['出品者']).strip(),
+                                'seller_url': str(row['出品者URL']).strip(),
+                                'product_url': str(row['商品URL']).strip()
+                            }
+                            
+                            # Supabaseクライアントの初期化
+                            supabase = init_connection()
+                            if not supabase:
+                                raise Exception("データベース接続に失敗しました")
+                                
+                            # データを登録
                             try:
-                                # 進捗状況を更新
-                                current_progress = (success_count + error_count) / total_rows
-                                progress_bar.progress(current_progress)
-                                status_text.text(f"進捗: {success_count + error_count}/{total_rows} 件 (成功: {success_count}, エラー: {error_count})")
-                                
-                                # 日付形式の統一
-                                timestamp = pd.to_datetime(row['タイムスタンプ'])
-                                formatted_date = timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                                
-                                # 数値データの前処理
-                                start_price = int(str(row['開始価格']).replace(',', '').strip())
-                                end_price = int(str(row['落札価格']).replace(',', '').strip())
-                                bids = int(str(row['入札数']).replace(',', '').strip())
-                                
-                                # データを登録
-                                data = {
-                                    'timestamp': formatted_date,
-                                    'category': str(row['カテゴリ']).strip(),
-                                    'title': str(row['タイトル']).strip(),
-                                    'start_price': start_price,
-                                    'final_price': end_price,
-                                    'bid_count': bids,
-                                    'buyer': str(row['落札者']).strip(),
-                                    'seller': str(row['出品者']).strip(),
-                                    'seller_url': str(row['出品者URL']).strip(),
-                                    'product_url': str(row['商品URL']).strip()
-                                }
-                                
-                                # Supabaseクライアントの初期化
-                                supabase = init_connection()
-                                if not supabase:
-                                    raise Exception("データベース接続に失敗しました")
-                                    
-                                # データを登録
-                                try:
-                                    result = supabase.table('sales').insert(data).execute()
-                                    if not result.data:
-                                        raise Exception("データの登録に失敗しました")
-                                    success_count += 1
-                                except Exception as e:
-                                    raise Exception(f"データ登録エラー: {str(e)}")
-                                    
+                                result = supabase.table('sales').insert(data).execute()
+                                if not result.data:
+                                    raise Exception("データの登録に失敗しました")
+                                success_count += 1
                             except Exception as e:
-                                error_count += 1
-                                error_messages.append(f"行 {index+1}: {str(e)}")
-                                st.error(f"エラー詳細: {str(e)}")
-                                st.error(f"問題のあるデータ: {row.to_dict()}")
-                        
-                        # 処理済みファイルとして記録
-                        processed_files.add(uploaded_file.name)
-                        
-                    except Exception as e:
-                        error_count += 1
-                        error_messages.append(f"ファイル {uploaded_file.name}: {str(e)}")
-                        st.error(f"ファイル処理エラー: {str(e)}")
-            
-            # 最終的な進捗を表示
-            progress_bar.progress(1.0)
-            status_text.text(f"完了: {total_rows} 件中 {success_count} 件成功, {error_count} 件エラー")
-            
-            # 結果を表示
-            st.success(f"処理完了！\n- 合計行数: {total_rows:,}\n- 成功: {success_count:,}\n- エラー: {error_count:,}")
-            
-            if error_messages:
-                st.error("エラーが発生しました:")
-                for msg in error_messages:
-                    st.write(f"- {msg}")
-            
-            # 処理完了フラグを設定
-            st.session_state.processing_complete = True
-            
-            # キャッシュをクリア
-            st.cache_data.clear()
-            
-            # ファイルアップローダーをリセット
-            st.session_state.csv_uploader = None
-            
-            # 画面を更新
-            st.rerun()
+                                raise Exception(f"データ登録エラー: {str(e)}")
+                                
+                        except Exception as e:
+                            error_count += 1
+                            error_messages.append(f"行 {index+1}: {str(e)}")
+                            st.error(f"エラー詳細: {str(e)}")
+                            st.error(f"問題のあるデータ: {row.to_dict()}")
+                    
+                    # 処理済みファイルとして記録
+                    processed_files.add(uploaded_file.name)
+                    
+                except Exception as e:
+                    error_count += 1
+                    error_messages.append(f"ファイル {uploaded_file.name}: {str(e)}")
+                    st.error(f"ファイル処理エラー: {str(e)}")
+        
+        # 最終的な進捗を表示
+        progress_bar.progress(1.0)
+        status_text.text(f"完了: {total_rows} 件中 {success_count} 件成功, {error_count} 件エラー")
+        
+        # 結果を表示
+        st.success(f"処理完了！\n- 合計行数: {total_rows:,}\n- 成功: {success_count:,}\n- エラー: {error_count:,}")
+        
+        if error_messages:
+            st.error("エラーが発生しました:")
+            for msg in error_messages:
+                st.write(f"- {msg}")
+        
+        # 処理完了フラグを設定
+        st.session_state.processing_complete = True
+        
+        # キャッシュをクリア
+        st.cache_data.clear()
+        
+        # 新しいアップロードのために画面を更新
+        time.sleep(1)  # 1秒待機して状態を安定させる
+        st.rerun()
+    
+    # 処理完了後、新しいアップロードの準備
+    elif st.session_state.processing_complete and not uploaded_files:
+        st.session_state.processing_complete = False
 
 def show_data_management():
     """データ管理画面"""
